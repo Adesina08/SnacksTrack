@@ -20,6 +20,13 @@ jobs:
           submodules: true
           lfs: false
 
+      # ✅ Inject secrets for Vite build
+      - name: Inject frontend env variables
+        run: |
+          echo "VITE_JWT_SECRET=${{ secrets.VITE_JWT_SECRET }}" >> $GITHUB_ENV
+          echo "VITE_BACKEND_URL=${{ secrets.VITE_BACKEND_URL }}" >> $GITHUB_ENV
+
+      # ✅ Build and deploy using secrets
       - name: Build and Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -27,11 +34,10 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_BLUE_ROCK_0AE0F3D03 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
+          app_location: "frontend"
+          output_location: "dist"
+          api_location: "api"
 
-          # ✅ Key values for proper deployment
-          app_location: "frontend"         # Your React app is here
-          output_location: "dist"          # Vite outputs here by default
-          api_location: "api"                 # Leave blank unless you're using Azure Functions
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -44,3 +50,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_BLUE_ROCK_0AE0F3D03 }}
           action: "close"
+
