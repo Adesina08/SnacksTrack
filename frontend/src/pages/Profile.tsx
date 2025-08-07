@@ -24,7 +24,7 @@ import {
   NotificationService,
   NotificationPreferences,
 } from "@/lib/notifications";
-import { localDbOperations } from "@/lib/local-db";
+import { localDbOperations } from "@/lib/local-storage";
 
 const Profile = () => {
   const [user, setUser] = useState<UserType | null>(null);
