@@ -24,7 +24,7 @@ import {
   NotificationService,
   NotificationPreferences,
 } from "@/lib/notifications";
-import { localDbOperations } from "@/lib/local-storage";
+import { dbOperations } from "@/lib/database";
 
 const Profile = () => {
   const [user, setUser] = useState<UserType | null>(null);
@@ -77,7 +77,7 @@ const Profile = () => {
       const currentUser = await authUtils.getCurrentUser();
       if (currentUser) {
         // Load user's consumption logs to calculate stats
-        const logs = await localDbOperations.getUserConsumptionLogs(
+        const logs = await dbOperations.getUserConsumptionLogs(
           currentUser.id,
         );
 
