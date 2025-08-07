@@ -1,5 +1,5 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { createConnection } from "pg"; // or use `pg` for Postgres
+import { Pool } from "pg";
 
 const httpTrigger: AzureFunction = async function (context: Context, req: HttpRequest): Promise<void> {
   const email = context.bindingData.email;
@@ -12,18 +12,21 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
     return;
   }
 
+  const pool = new Pool({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 5432),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  });
+
   try {
-    const connection = await createConnection({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-    });
+    const { rows } = await pool.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
 
-    const [rows] = await connection.execute("SELECT * FROM users WHERE email = ?", [email]);
-    await connection.end();
-
-    const user = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    const user = rows.length > 0 ? rows[0] : null;
 
     if (!user) {
       context.res = {
@@ -43,6 +46,8 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
       status: 500,
       body: "Internal Server Error",
     };
+  } finally {
+    await pool.end();
   }
 };
 
