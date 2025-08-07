@@ -1,4 +1,5 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import { createConnection } from "pg"; // or use `pg` for Postgres
 
 const httpTrigger: AzureFunction = async function (context: Context, req: HttpRequest): Promise<void> {
   const email = context.bindingData.email;
@@ -12,8 +13,17 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
   }
 
   try {
-    // Replace this with actual DB lookup logic
-    const user = await fakeFindUserByEmail(email);
+    const connection = await createConnection({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+    });
+
+    const [rows] = await connection.execute("SELECT * FROM users WHERE email = ?", [email]);
+    await connection.end();
+
+    const user = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
 
     if (!user) {
       context.res = {
@@ -37,11 +47,3 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
 };
 
 export default httpTrigger;
-
-async function fakeFindUserByEmail(email: string) {
-  // Mock user search — replace with your DB logic
-  if (email === "test@example.com") {
-    return { id: 1, email: "test@example.com", name: "Test User" };
-  }
-  return null;
-}
