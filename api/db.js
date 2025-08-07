@@ -1,7 +1,7 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 import crypto from 'node:crypto';
-import fs from 'fs'
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
