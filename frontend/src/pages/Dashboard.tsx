@@ -16,7 +16,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { authUtils } from "@/lib/auth";
-import { localDbOperations } from "@/lib/local-db";
+import { localDbOperations } from "@/lib/api-client";
 import { User, ConsumptionLog } from "@/types/api";
 
 const Dashboard = () => {

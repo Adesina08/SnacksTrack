@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
-import { localDbOperations } from "@/lib/local-db";
+import { localDbOperations } from "@/lib/api-client";
 import { authUtils } from "@/lib/auth";
 import { NotificationService } from "@/lib/notifications";
 import NotificationPrompt from "@/components/NotificationPrompt";

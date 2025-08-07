@@ -17,7 +17,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import { authUtils } from "@/lib/auth";
-import { localDbOperations } from "@/lib/local-db";
+import { localDbOperations } from "@/lib/api-client";
 import { User, Reward, ConsumptionLog } from "@/types/api";
 
 const Rewards = () => {
