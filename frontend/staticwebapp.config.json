@@ -1,0 +1,13 @@
+{
+  "routes": [
+    {
+      "route": "/api/*",
+      "rewrite": "https://snacksappbackendv2b-b0erbpa2dmh6brg0.southafricanorth-01.azurewebsites.net/api/:path*"
+    }
+  ],
+  "globalHeaders": {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "*"
+  }
+}
+
