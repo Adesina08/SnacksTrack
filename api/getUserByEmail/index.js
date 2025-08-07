@@ -2,7 +2,20 @@ import { pool } from '../db.js';
 import { jsonResponse } from '../shared.js';
 
 export default async function (context, req) {
-  const { email } = req.params;
-  const { rows } = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
-  context.res = jsonResponse(200, rows[0] || null);
+  try {
+    const email = req.params?.email;
+    if (!email) {
+      context.res = jsonResponse(400, { message: 'Email parameter is required' });
+      return;
+    }
+    const { rows } = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
+    if (rows.length === 0) {
+      context.res = jsonResponse(404, { message: 'User not found' });
+    } else {
+      context.res = jsonResponse(200, rows[0]);
+    }
+  } catch (err) {
+    context.log(err);
+    context.res = jsonResponse(500, { message: 'Error retrieving user' });
+  }
 }
