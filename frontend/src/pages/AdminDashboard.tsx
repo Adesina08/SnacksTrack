@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, TrendingUp, Award, Database, Download, Calendar } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { localDbOperations } from "@/lib/local-db";
+import { localDbOperations } from "@/lib/api-client";
 import ActivityCalendar from 'react-activity-calendar';
 import { ConsumptionLog } from "@/types/api";
 

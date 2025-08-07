@@ -53,12 +53,14 @@ function toCamelCase(obj: any): any {
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export function buildUrl(endpoint: string): string {
-  if (!API_BASE) return `/api${endpoint}`;
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  if (!API_BASE) return `/api/${normalizedEndpoint}`;
+
   let base = API_BASE.replace(/\/$/, '');
   if (base.endsWith('/api')) {
     base = base.slice(0, -4);
   }
-  return `${base}/api${endpoint}`;
+  return `${base}/api/${normalizedEndpoint}`;
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -67,6 +69,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...options
   });
   if (!res.ok) {
+    const errorBody = await res.text();
+    console.error(`Request to ${endpoint} failed with status ${res.status}: ${errorBody}`);
     throw new Error(`Request failed: ${res.status}`);
   }
   const data = await res.json();
@@ -75,48 +79,58 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const localDbOperations = {
   async createUser(userData: Omit<User, 'id' | 'createdAt' | 'points'>): Promise<User> {
-    return request<User>('/users', { method: 'POST', body: JSON.stringify(userData) });
+    return request<User>('users', { method: 'POST', body: JSON.stringify(userData) });
   },
 
   async getUserByEmail(email: string): Promise<User | null> {
-    return request<User | null>(`/users/email/${encodeURIComponent(email)}`);
+    try {
+      return await request<User | null>(`users/email/${encodeURIComponent(email)}`);
+    } catch (error: any) {
+      if (error.message.includes('404')) return null; // Return null if user not found
+      throw error;
+    }
   },
 
   async getUserById(id: string): Promise<User | null> {
-    return request<User | null>(`/users/${id}`);
+    try {
+      return await request<User | null>(`users/${id}`);
+    } catch (error: any) {
+      if (error.message.includes('404')) return null;
+      throw error;
+    }
   },
 
   async updateUserPoints(userId: string, points: number): Promise<User> {
-    return request<User>(`/users/${userId}/points`, {
+    return request<User>(`users/${userId}/points`, {
       method: 'PATCH',
       body: JSON.stringify({ points })
     });
   },
 
   async createConsumptionLog(logData: Omit<ConsumptionLog, 'id' | 'createdAt'>): Promise<ConsumptionLog> {
-    return request<ConsumptionLog>('/logs', {
+    return request<ConsumptionLog>('logs', {
       method: 'POST',
       body: JSON.stringify(logData)
     });
   },
 
   async getUserConsumptionLogs(userId: string): Promise<ConsumptionLog[]> {
-    return request<ConsumptionLog[]>(`/logs/user/${userId}`);
+    return request<ConsumptionLog[]>(`logs/user/${userId}`);
   },
 
   async getAllConsumptionLogs(): Promise<ConsumptionLog[]> {
-    return request<ConsumptionLog[]>('/logs');
+    return request<ConsumptionLog[]>('logs');
   },
 
   async getConsumptionAnalytics(): Promise<Array<{ category: string; createdAt: string; points: number }>> {
-    return request('/analytics/logs');
+    return request('analytics/logs');
   },
 
   async getRewards(): Promise<Reward[]> {
-    return request('/rewards');
+    return request('rewards');
   },
 
   async getLeaderboard(): Promise<Array<{ id: string; name: string; points: number }>> {
-    return request('/leaderboard');
+    return request('leaderboard');
   }
 };

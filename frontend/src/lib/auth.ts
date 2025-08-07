@@ -1,6 +1,6 @@
 
 import { User } from '@/types/api';
-import { localDbOperations } from './local-db';
+import { localDbOperations } from './api-client';
 
 const JWT_SECRET = import.meta.env.VITE_JWT_SECRET;
 if (!JWT_SECRET) {
