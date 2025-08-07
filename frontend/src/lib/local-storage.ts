@@ -5,7 +5,7 @@ export interface UploadResult {
   error?: string;
 }
 
-import { buildUrl } from './local-db';
+import { buildUrl } from './api-client';
 
 export class LocalStorageService {
   private uploadEndpoint = buildUrl('/upload');
