@@ -13,6 +13,7 @@ const PasswordInput = ({ className, ...props }: PasswordInputProps) => {
       <Input
         type={show ? "text" : "password"}
         className={cn("pr-10", className)}
+        data-testid="password-input"
         {...props}
       />
       <button
