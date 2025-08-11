@@ -1,60 +1,52 @@
-import { analyzeText } from "@/lib/analyze";
+async transcribeAudio(
+  audioBlob: Blob,
+  onProgress?: (progress: number) => void
+): Promise<string> {
+  // convert to base64
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(audioBlob);
+  });
+  const fileBase64 = dataUrl.split(',')[1] ?? '';
+  onProgress?.(25);
 
-export interface AzureAIAnalysis {
-  transcription?: string;
-  detectedProducts?: string[];
-  sentiment?: 'positive' | 'negative' | 'neutral' | 'mixed';
-  confidence?: number;
-  emotions?: string[];
-  brands?: string[];
-  categories?: string[];
-  estimatedSpend?: string;
-  location?: string;
-}
-
-export class AzureAIService {
-  async analyzeConsumption(
-    transcription: string,
-    _mediaType: 'audio' | 'video',
-    onProgress?: (progress: number) => void
-  ): Promise<AzureAIAnalysis> {
-    try {
-      const data: {
-        sentiment: string;
-        confidence?: number;
-        categories?: string[];
-      } = await analyzeText(transcription);
-
-      onProgress?.(100);
-
-      return {
-        transcription,
-        sentiment: data.sentiment as 'positive' | 'negative' | 'neutral' | 'mixed',
-        confidence: data.confidence,
-        categories: data.categories
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Analysis failed';
-      console.error('Detailed analysis error:', msg);
-      throw new Error(msg);
-    }
-  }
-
-  async analyzeImage(imageBlob: Blob): Promise<AzureAIAnalysis> {
-    // Stubbed analysis - replace with Azure Vision API call later if needed
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          detectedProducts: ['Coca-Cola', 'French Fries'],
-          brands: ['Coca-Cola', "McDonald's"],
-          categories: ['Beverages', 'Fast Food'],
-          confidence: 0.85,
-          estimatedSpend: '$12.50',
-          location: 'Restaurant/Fast Food Chain'
-        });
-      }, 2000);
+  let response: Response;
+  try {
+    const transcribeUrl = new URL('/api/transcribe', this.backendUrl).toString();
+    response = await fetch(transcribeUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contentType: (audioBlob as any).type || 'audio/webm',
+        fileBase64
+      })
     });
+  } catch (err) {
+    console.error('Network or CORS error:', err);
+    throw new Error('Failed to connect to backend server');
   }
-}
 
-export const azureAI = new AzureAIService();
+  let data: any;
+  try {
+    data = await response.json();
+  } catch {
+    console.error('Failed to parse JSON from transcription response');
+    throw new Error('Invalid response from server');
+  }
+
+  if (!response.ok) {
+    console.error('Transcription failed:', data.message || response.statusText);
+    throw new Error(data.message || 'Transcription failed');
+  }
+
+  const transcript = data.text?.trim();
+  if (!transcript) {
+    console.error('Empty transcription response');
+    throw new Error('No transcription text received');
+  }
+
+  onProgress?.(100);
+  return transcript;
+}
