@@ -2,14 +2,16 @@
   "name": "snackstrack-api",
   "version": "1.0.0",
   "type": "module",
-  "engines": { "node": ">=18" },
   "dependencies": {
-    "pg": "^8.11.0",
+    "pg": "^8.11.5",
     "dotenv": "^16.4.5",
-    "@azure/storage-blob": "^12.18.0",
-    "@azure/ai-text-analytics": "^5.3.0",
-    "microsoft-cognitiveservices-speech-sdk": "^1.36.0",
-    "formidable": "^3.5.0",
-    "jsonwebtoken": "^9.0.2"
+    "@azure/storage-blob": "^12.28.0",
+    "microsoft-cognitiveservices-speech-sdk": "^1.45.0",
+    "formidable": "^3.5.4",
+    "@azure/ai-text-analytics": "^5.1.0"
   }
 }
+
+
+
+
