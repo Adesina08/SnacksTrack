@@ -4,7 +4,7 @@ jest.unstable_mockModule('../db.js', () => ({
   pool: {
     query: jest.fn(),
   },
-  dbReady: true,
+  dbReady: jest.fn().mockResolvedValue(true),
 }));
 
 jest.unstable_mockModule('../shared.js', () => ({
@@ -82,11 +82,9 @@ describe('getUserByEmail', () => {
   it('should return 503 if database is not ready', async () => {
     jest.resetModules();
     jest.unstable_mockModule('../db.js', () => ({
-        pool: {
-          query: jest.fn(),
-        },
-        dbReady: false,
-      }));
+      pool: { query: jest.fn() },
+      dbReady: jest.fn().mockRejectedValue(new Error('not ready')),
+    }));
     const { default: getUserByEmail } = await import('./index.js');
     const req = { params: { email: 'test@example.com' } };
     const context = { res: {}, log: jest.fn() };

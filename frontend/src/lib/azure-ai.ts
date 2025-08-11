@@ -1,5 +1,3 @@
-import { buildUrl } from './local-db';
-
 export interface AzureAIAnalysis {
   transcription?: string;
   detectedProducts?: string[];
@@ -16,52 +14,7 @@ export class AzureAIService {
   private backendUrl: string;
 
   constructor() {
-    this.backendUrl = import.meta.env.VITE_BACKEND_URL;
-    if (!this.backendUrl) {
-      throw new Error('VITE_BACKEND_URL is not defined in the environment');
-    }
-  }
-
-  async transcribeAudio(
-    audioBlob: Blob,
-    onProgress?: (progress: number) => void
-  ): Promise<string> {
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.wav');
-
-    let response: Response;
-    try {
-      const transcribeUrl = new URL('/api/transcribe', this.backendUrl).toString();
-      response = await fetch(transcribeUrl, {
-        method: 'POST',
-        body: formData
-      });
-    } catch (err) {
-      console.error('Network or CORS error:', err);
-      throw new Error('Failed to connect to backend server');
-    }
-
-    let data: any;
-    try {
-      data = await response.json();
-    } catch (err) {
-      console.error('Failed to parse JSON from transcription response');
-      throw new Error('Invalid response from server');
-    }
-
-    if (!response.ok) {
-      console.error('Transcription failed:', data.message || response.statusText);
-      throw new Error(data.message || 'Transcription failed');
-    }
-
-    const transcript = data.text?.trim();
-    if (!transcript) {
-      console.error('Empty transcription response');
-      throw new Error('No transcription text received');
-    }
-
-    onProgress?.(100);
-    return transcript;
+    this.backendUrl = import.meta.env.VITE_API_BASE_URL || "";
   }
 
   async analyzeConsumption(
