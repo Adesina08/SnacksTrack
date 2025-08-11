@@ -1,52 +1,36 @@
-async transcribeAudio(
-  audioBlob: Blob,
-  onProgress?: (progress: number) => void
-): Promise<string> {
-  // convert to base64
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = reject;
-    r.readAsDataURL(audioBlob);
-  });
-  const fileBase64 = dataUrl.split(',')[1] ?? '';
-  onProgress?.(25);
+// /frontend/src/lib/azure-ai.ts
+export type AzureAIAnalysis = {
+  mood: string;
+  confidence: number | null;
+  snacks: string[];
+  amountSpent: { currency: string; amount: number; text: string } | null;
+  said: string;
+  // keep originals (optional)
+  sentiment?: string;
+  confidenceScores?: { positive: number; neutral: number; negative: number };
+  keyPhrases?: string[];
+  entities?: any[];
+  sentences?: any[];
+};
 
-  let response: Response;
-  try {
-    const transcribeUrl = new URL('/api/transcribe', this.backendUrl).toString();
-    response = await fetch(transcribeUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        contentType: (audioBlob as any).type || 'audio/webm',
-        fileBase64
-      })
+const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+
+export const azureAI = {
+  async analyzeConsumption(
+    text: string,
+    _mediaType?: "audio" | "video" | "text",
+    onProgress?: (p: number) => void
+  ): Promise<AzureAIAnalysis> {
+    if (!text?.trim()) throw new Error("Missing text");
+    onProgress?.(15);
+    const res = await fetch(`${baseUrl}/api/analyze`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text })
     });
-  } catch (err) {
-    console.error('Network or CORS error:', err);
-    throw new Error('Failed to connect to backend server');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || "Text analysis failed");
+    onProgress?.(100);
+    return data as AzureAIAnalysis;
   }
-
-  let data: any;
-  try {
-    data = await response.json();
-  } catch {
-    console.error('Failed to parse JSON from transcription response');
-    throw new Error('Invalid response from server');
-  }
-
-  if (!response.ok) {
-    console.error('Transcription failed:', data.message || response.statusText);
-    throw new Error(data.message || 'Transcription failed');
-  }
-
-  const transcript = data.text?.trim();
-  if (!transcript) {
-    console.error('Empty transcription response');
-    throw new Error('No transcription text received');
-  }
-
-  onProgress?.(100);
-  return transcript;
-}
+};
