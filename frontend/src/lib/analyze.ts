@@ -4,7 +4,7 @@ export async function analyzeText(text: string) {
   const res = await fetch(`${baseUrl}/api/analyze`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text })
+    body: JSON.stringify({ text }) // <-- must be "text"
   });
 
   const data = await res.json().catch(() => ({}));
