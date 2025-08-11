@@ -1,52 +1,64 @@
-import { IncomingForm } from 'formidable';
-import fs from 'fs';
-import sdk from 'microsoft-cognitiveservices-speech-sdk';
-import { speechConfig, jsonResponse } from '../shared.js';
+// Classic Azure Functions (context, req) — no formidable, no Node streams.
+// Expects: { "audioBase64": "<base64-encoded audio bytes>" }
+// Returns: { "text": "..." }
 
 export default async function (context, req) {
-  const form = new IncomingForm({ multiples: false });
   try {
-    const { files } = await new Promise((resolve, reject) => {
-      form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
-      });
-    });
-    const audio = files.audio;
-    if (!audio) {
-      context.res = jsonResponse(400, { message: 'No audio file uploaded' });
+    const { audioBase64 } = req.body || {};
+    if (!audioBase64) {
+      context.res = {
+        status: 400,
+        headers: { "content-type": "application/json" },
+        body: { error: "audioBase64 missing" }
+      };
       return;
     }
-    if (!speechConfig) {
-      throw new Error('Azure Speech Service not configured');
+
+    const key = process.env.AZURE_SPEECH_KEY;
+    const region = process.env.AZURE_SPEECH_REGION;
+    if (!key || !region) {
+      context.res = {
+        status: 500,
+        headers: { "content-type": "application/json" },
+        body: { error: "Missing AZURE_SPEECH_KEY/REGION" }
+      };
+      return;
     }
-    const audioConfig = sdk.AudioConfig.fromFileInput(audio.filepath);
+
+    // Convert base64 to Buffer
+    const audioBuffer = Buffer.from(audioBase64, "base64");
+
+    // Lazy-load Speech SDK so other functions don’t break on startup
+    const mod = await import("microsoft-cognitiveservices-speech-sdk");
+    const sdk = mod.default || mod;
+
+    // Push the buffer into a stream the SDK can read
+    const push = sdk.AudioInputStream.createPushStream();
+    push.write(audioBuffer);
+    push.close();
+
+    const audioConfig = sdk.AudioConfig.fromStreamInput(push);
+    const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
+    // Optional: choose language (uncomment if you need)
+    // speechConfig.speechRecognitionLanguage = "en-US";
+
     const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
-    const text = await new Promise((resolve, reject) => {
-      recognizer.recognizeOnceAsync(
-        (result) => {
-          recognizer.close();
-          if (result.reason === sdk.ResultReason.RecognizedSpeech) {
-            resolve(result.text);
-          } else {
-            reject(result.errorDetails);
-          }
-        },
-        (err) => {
-          recognizer.close();
-          reject(err);
-        },
-      );
+    const result = await new Promise((resolve, reject) => {
+      recognizer.recognizeOnceAsync(resolve, reject);
     });
-    fs.unlink(audio.filepath, () => {});
-    context.res = jsonResponse(200, { text: text.trim() });
+    recognizer.close();
+
+    context.res = {
+      status: 200,
+      headers: { "content-type": "application/json" },
+      body: { text: result?.text || "" }
+    };
   } catch (err) {
-    context.log('Transcription failed', err);
-    // remove temp file if exists
-    if (err && err.path) {
-      fs.unlink(err.path, () => {});
-    }
-    const msg = err instanceof Error ? err.message : 'Transcription failed';
-    context.res = jsonResponse(500, { message: msg });
+    context.log.error(err);
+    context.res = {
+      status: 500,
+      headers: { "content-type": "application/json" },
+      body: { error: err.message }
+    };
   }
 }
