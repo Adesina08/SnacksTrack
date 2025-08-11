@@ -1,11 +1,10 @@
 import { blobToBase64 } from "./blobToBase64";
 
-// If API is same SWA, baseUrl is "".
-// If separate, set VITE_API_BASE_URL in GitHub secrets.
-const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+const baseUrl = import.meta.env.VITE_API_BASE_URL || ""; // "" if same SWA
 
 export async function transcribeAudio(blob: Blob): Promise<string> {
   const audioBase64 = await blobToBase64(blob);
+  if (!audioBase64) throw new Error("Empty audio");
 
   const res = await fetch(`${baseUrl}/api/transcribe`, {
     method: "POST",
@@ -13,7 +12,7 @@ export async function transcribeAudio(blob: Blob): Promise<string> {
     body: JSON.stringify({ audioBase64 })
   });
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || `Transcribe failed: ${res.status}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Transcription failed");
   return data?.text ?? "";
 }
