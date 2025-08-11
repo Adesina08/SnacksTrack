@@ -1,153 +1,67 @@
-// /api/analyze/index.js
-// POST JSON { text: "..." }  -> returns structured analysis including snacks, mood, confidence, amountSpent, said
+// Accepts JSON { fileName, contentType, fileBase64 } or { dataUrl }.
+// Uploads to Azure Blob Storage and returns { ok, blobName, url }.
 
 export default async function (context, req) {
   try {
-    const body = req.body || {};
-    const text =
-      typeof body.text === "string" ? body.text.trim() :
-      Array.isArray(body.lines) && body.lines.length ? String(body.lines.join(" ").trim()) : "";
+    const b = req.body || {};
+    let { fileName, contentType, fileBase64, dataUrl } = b;
 
-    if (!text) {
+    // allow data URL too
+    if (!fileBase64 && typeof dataUrl === "string" && dataUrl.startsWith("data:")) {
+      fileBase64 = dataUrl.split(",", 2)[1] || "";
+      const mt = dataUrl.slice(5, dataUrl.indexOf(";")); // e.g. "image/png"
+      if (!contentType && mt) contentType = mt;
+    }
+
+    if (!fileBase64 || typeof fileBase64 !== "string") {
       context.res = {
         status: 400,
         headers: { "content-type": "application/json" },
-        body: { error: 'Missing text. Send { text: "..." } or { lines: ["..."] }' }
+        body: { error: "Send JSON with { fileBase64: '<base64>' } (optionally fileName, contentType)" }
       };
       return;
     }
 
-    const endpoint = process.env.AZURE_LANGUAGE_ENDPOINT;  // e.g. https://<name>.cognitiveservices.azure.com/
-    const key = process.env.AZURE_LANGUAGE_KEY;
-    if (!endpoint || !key) {
-      context.res = { status: 500, headers: { "content-type": "application/json" }, body: { error: "Missing AZURE_LANGUAGE_ENDPOINT / AZURE_LANGUAGE_KEY" } };
+    const conn = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    if (!conn) {
+      context.res = { status: 500, headers: { "content-type": "application/json" }, body: { error: "AZURE_STORAGE_CONNECTION_STRING missing" } };
       return;
     }
 
-    // --- Azure Language SDK (lazy import) ---
-    const { TextAnalyticsClient, AzureKeyCredential } = await import("@azure/ai-text-analytics");
-    const client = new TextAnalyticsClient(endpoint, new AzureKeyCredential(key));
+    const { BlobServiceClient } = await import("@azure/storage-blob");
 
-    // --- Run sentiment, key phrases, entities ---
-    const docs = [text];
-    const [sentiment] = await client.analyzeSentiment(docs);
-    const [phrases]   = await client.extractKeyPhrases(docs);
-    const [entities]  = await client.recognizeEntities(docs);
+    const containerName = (process.env.BLOB_CONTAINER || "uploads").toLowerCase();
+    const service = BlobServiceClient.fromConnectionString(conn);
+    const container = service.getContainerClient(containerName);
+    await container.createIfNotExists();
 
-    // --- Mood + confidence ---
-    const label = sentiment?.sentiment || "neutral";
-    const cs = sentiment?.confidenceScores || { positive: 0, neutral: 0, negative: 0 };
-    const confidence =
-      label === "positive" ? cs.positive :
-      label === "negative" ? cs.negative : cs.neutral;
+    const safeExt =
+      (contentType && contentType.split("/")[1]) ||
+      (fileName && fileName.split(".").pop()) ||
+      "bin";
 
-    // --- Amount Spent (try NER first, then regex fallback) ---
-    function normalizeCurrency(symOrWord) {
-      const s = (symOrWord || "").toString().toUpperCase();
-      if (s.includes("₦") || s.includes("NAIRA") || s === "NGN" || s === "N") return "NGN";
-      if (s.includes("$") || s === "USD") return "USD";
-      if (s.includes("£") || s === "GBP") return "GBP";
-      if (s.includes("€") || s === "EUR") return "EUR";
-      return s || "NGN";
-    }
+    const blobName =
+      fileName ||
+      `upload_${new Date().toISOString().replace(/[:.]/g, "-")}.${safeExt}`;
 
-    let amountSpent = null;
+    const buffer = Buffer.from(fileBase64, "base64");
 
-    // regexes:
-    //  ₦500 / NGN 500 / 500 NGN / 500 naira / $3.50 / 3.50 USD / £2 / €4
-    const r1 = /(?:(₦|NGN|Naira|N|\$|USD|£|GBP|€|EUR)\s*([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]+)?))/i;
-    const r2 = /([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]+)?)\s*(₦|NGN|Naira|N|\$|USD|£|GBP|€|EUR)/i;
+    const blob = container.getBlockBlobClient(blobName);
+    await blob.uploadData(buffer, {
+      blobHTTPHeaders: { blobContentType: contentType || "application/octet-stream" }
+    });
 
-    // try entities
-    if (entities?.entities?.length) {
-      // Look around any "Currency" entity for a number substring
-      for (const e of entities.entities) {
-        if ((e.category || "").toLowerCase() === "currency") {
-          // naive neighbor search in text
-          const after = text.slice(e.offset + e.length, e.offset + e.length + 20);
-          const before = text.slice(Math.max(0, e.offset - 12), e.offset);
-          const try1 = r1.exec(e.text + " " + after);
-          const try2 = r2.exec(before + " " + e.text);
-          const m = try1 || try2;
-          if (m) {
-            const cur = normalizeCurrency(m[1] || m[2] || e.text);
-            const raw = (m[2] || m[1] || "").replace(/[,]/g, ".");
-            const amount = Number(raw.replace(/[^0-9.]/g, ""));
-            if (!Number.isNaN(amount)) {
-              amountSpent = { currency: cur, amount, text: m[0] };
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    // fallback regex over whole text
-    if (!amountSpent) {
-      const m = r1.exec(text) || r2.exec(text);
-      if (m) {
-        const cur = normalizeCurrency(m[1] || m[2]);
-        const raw = (m[2] || m[1] || "").replace(/[,]/g, ".");
-        const amount = Number(raw.replace(/[^0-9.]/g, ""));
-        if (!Number.isNaN(amount)) amountSpent = { currency: cur, amount, text: m[0] };
-      }
-    }
-
-    // --- Snacks detection (simple dictionary + key phrases) ---
-    const SNACKS = new Set([
-      "chips","plantain chips","crisps","biscuit","biscuits","cookie","cookies",
-      "cake","cupcake","chocolate","candy","sweet","sweets","popcorn","nuts","peanuts",
-      "granola bar","energy bar","yogurt","yoghurt","ice cream","meat pie","sausage roll",
-      "gala","puff puff","chin chin","meatpie","pie","donut","doughnut","shawarma","buns"
-    ]);
-
-    function norm(s) { return s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").trim(); }
-    const candidates = new Set();
-
-    // from key phrases
-    for (const kp of (phrases?.keyPhrases || [])) {
-      const k = norm(kp);
-      if (SNACKS.has(k)) candidates.add(k);
-      // split phrases to catch single-word snacks
-      for (const part of k.split(/\s+/)) {
-        if (SNACKS.has(part)) candidates.add(part);
-      }
-    }
-
-    // quick token scan over the text
-    for (const tok of norm(text).split(/\s+/)) {
-      if (!tok) continue;
-      const singular = tok.endsWith("s") ? tok.slice(0, -1) : tok;
-      if (SNACKS.has(tok)) candidates.add(tok);
-      if (SNACKS.has(singular)) candidates.add(singular);
-    }
-
-    const snacks = Array.from(candidates).sort();
-
-    // --- Build response ---
     context.res = {
       status: 200,
       headers: { "content-type": "application/json" },
-      body: {
-        // keep originals for backward-compat
-        sentiment: sentiment?.sentiment || "neutral",
-        confidenceScores: cs,
-        sentences: (sentiment?.sentences || []).map(s => ({
-          text: s.text, sentiment: s.sentiment, confidenceScores: s.confidenceScores
-        })),
-        keyPhrases: phrases?.keyPhrases || [],
-        entities: entities?.entities || [],
-
-        // new tidy summary
-        mood: label,                        // "positive" | "neutral" | "negative"
-        confidence,                         // 0..1
-        snacks,                             // ["chips","yogurt",...]
-        amountSpent,                        // { currency:"NGN", amount:500, text:"₦500" } | null
-        said: text                          // echo input
-      }
+      body: { ok: true, blobName, url: blob.url }
     };
   } catch (err) {
-    context.log.error(err);
-    context.res = { status: 500, headers: { "content-type": "application/json" }, body: { error: "Text analysis failed", details: err.message } };
+    context.log.error("upload error:", err);
+    context.res = {
+      status: 500,
+      headers: { "content-type": "application/json" },
+      body: { error: "Upload failed", details: err.message }
+    };
   }
 }
