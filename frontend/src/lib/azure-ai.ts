@@ -1,3 +1,5 @@
+import { analyzeText } from "@/lib/analyze";
+
 export interface AzureAIAnalysis {
   transcription?: string;
   detectedProducts?: string[];
@@ -11,49 +13,31 @@ export interface AzureAIAnalysis {
 }
 
 export class AzureAIService {
-  private backendUrl: string;
-
-  constructor() {
-    this.backendUrl = import.meta.env.VITE_API_BASE_URL || "";
-  }
-
   async analyzeConsumption(
     transcription: string,
-    mediaType: 'audio' | 'video',
+    _mediaType: 'audio' | 'video',
     onProgress?: (progress: number) => void
   ): Promise<AzureAIAnalysis> {
-    const response = await fetch(`${this.backendUrl}/api/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: transcription })
-    });
+    try {
+      const data: {
+        sentiment: string;
+        confidence?: number;
+        categories?: string[];
+      } = await analyzeText(transcription);
 
-    if (!response.ok) {
-      let msg = 'Analysis failed';
-      try {
-        const err = await response.json();
-        msg = err.message || msg;
-      } catch {
-        // ignore parse errors
-      }
+      onProgress?.(100);
+
+      return {
+        transcription,
+        sentiment: data.sentiment as 'positive' | 'negative' | 'neutral' | 'mixed',
+        confidence: data.confidence,
+        categories: data.categories
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Analysis failed';
       console.error('Detailed analysis error:', msg);
       throw new Error(msg);
     }
-
-    const data: {
-      sentiment: string;
-      confidence?: number;
-      categories?: string[];
-    } = await response.json();
-
-    onProgress?.(100);
-
-    return {
-      transcription,
-      sentiment: data.sentiment as 'positive' | 'negative' | 'neutral' | 'mixed',
-      confidence: data.confidence,
-      categories: data.categories
-    };
   }
 
   async analyzeImage(imageBlob: Blob): Promise<AzureAIAnalysis> {
