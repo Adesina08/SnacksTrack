@@ -1,15 +1,25 @@
-// Classic Azure Functions (context, req) — no formidable, no Node streams.
-// Expects: { "audioBase64": "<base64-encoded audio bytes>" }
-// Returns: { "text": "..." }
 
+// /api/transcribe/index.js
 export default async function (context, req) {
   try {
-    const { audioBase64 } = req.body || {};
+    const body = req.body || {};
+    let audioBase64 =
+      typeof body.audioBase64 === "string" ? body.audioBase64.trim() :
+      typeof body.audio === "string" ? body.audio.trim() :
+      "";
+
+    // Accept data URLs too: "data:audio/webm;base64,AAAA..."
+    if (audioBase64.startsWith("data:")) {
+      const parts = audioBase64.split(",", 2);
+      audioBase64 = parts[1] || "";
+    }
+
     if (!audioBase64) {
+      context.log.warn(`transcribe 400: missing audioBase64. ct=${req.headers?.["content-type"]}`);
       context.res = {
         status: 400,
         headers: { "content-type": "application/json" },
-        body: { error: "audioBase64 missing" }
+        body: { error: "audioBase64 missing. Send JSON with { audioBase64: '<base64>' } and header content-type=application/json" }
       };
       return;
     }
@@ -17,30 +27,25 @@ export default async function (context, req) {
     const key = process.env.AZURE_SPEECH_KEY;
     const region = process.env.AZURE_SPEECH_REGION;
     if (!key || !region) {
-      context.res = {
-        status: 500,
-        headers: { "content-type": "application/json" },
-        body: { error: "Missing AZURE_SPEECH_KEY/REGION" }
-      };
+      context.res = { status: 500, headers: { "content-type": "application/json" }, body: { error: "Missing AZURE_SPEECH_KEY/REGION" } };
       return;
     }
 
-    // Convert base64 to Buffer
-    const audioBuffer = Buffer.from(audioBase64, "base64");
-
-    // Lazy-load Speech SDK so other functions don’t break on startup
     const mod = await import("microsoft-cognitiveservices-speech-sdk");
     const sdk = mod.default || mod;
 
-    // Push the buffer into a stream the SDK can read
+    const audioBuffer = Buffer.from(audioBase64, "base64");
+    if (audioBuffer.length < 256) {
+      context.res = { status: 400, headers: { "content-type": "application/json" }, body: { error: "audioBase64 too small" } };
+      return;
+    }
+
     const push = sdk.AudioInputStream.createPushStream();
-    push.write(audioBuffer);
-    push.close();
+    push.write(audioBuffer); push.close();
 
     const audioConfig = sdk.AudioConfig.fromStreamInput(push);
     const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
-    // Optional: choose language (uncomment if you need)
-    // speechConfig.speechRecognitionLanguage = "en-US";
+    // speechConfig.speechRecognitionLanguage = "en-US"; // optional
 
     const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
     const result = await new Promise((resolve, reject) => {
@@ -48,17 +53,9 @@ export default async function (context, req) {
     });
     recognizer.close();
 
-    context.res = {
-      status: 200,
-      headers: { "content-type": "application/json" },
-      body: { text: result?.text || "" }
-    };
+    context.res = { status: 200, headers: { "content-type": "application/json" }, body: { text: result?.text || "" } };
   } catch (err) {
     context.log.error(err);
-    context.res = {
-      status: 500,
-      headers: { "content-type": "application/json" },
-      body: { error: err.message }
-    };
+    context.res = { status: 500, headers: { "content-type": "application/json" }, body: { error: err.message } };
   }
 }
