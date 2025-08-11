@@ -1,4 +1,4 @@
-// frontend/src/lib/transcribe.ts
+// Convert Blob -> base64 and POST JSON { audioBase64 } to /api/transcribe
 async function blobToBase64(blob: Blob): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
@@ -6,10 +6,10 @@ async function blobToBase64(blob: Blob): Promise<string> {
     r.onerror = reject;
     r.readAsDataURL(blob);
   });
-  return dataUrl.split(",")[1] ?? ""; // strip "data:*;base64,"
+  return dataUrl.split(",")[1] ?? ""; // remove "data:*;base64,"
 }
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL || ""; // "" if same Static Web App
+const baseUrl = import.meta.env.VITE_API_BASE_URL || ""; // "" if same SWA
 
 export async function transcribeAudio(blob: Blob): Promise<string> {
   const audioBase64 = await blobToBase64(blob);
