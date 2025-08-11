@@ -1,63 +1,47 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'node:crypto';
-import { BlobServiceClient } from '@azure/storage-blob';
-import sdk from 'microsoft-cognitiveservices-speech-sdk';
-import { TextAnalyticsClient, AzureKeyCredential } from '@azure/ai-text-analytics';
+import fs from "fs";
+import path from "path";
+import crypto from "node:crypto";
 
-export const blobServiceClient = process.env.AZURE_STORAGE_CONNECTION_STRING
-  ? BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING)
-  : null;
+export async function getBlobServiceClient() {
+  const { BlobServiceClient } = await import("@azure/storage-blob");
+  const conn = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  if (!conn) throw new Error("AZURE_STORAGE_CONNECTION_STRING missing");
+  return BlobServiceClient.fromConnectionString(conn);
+}
 
-export const audioContainer = blobServiceClient?.getContainerClient(
-  process.env.AZURE_AUDIO_CONTAINER,
-);
+export async function getTextAnalyticsClient() {
+  const { TextAnalyticsClient, AzureKeyCredential } = await import("@azure/ai-text-analytics");
+  const endpoint = process.env.AZURE_LANGUAGE_ENDPOINT;
+  const key = process.env.AZURE_LANGUAGE_KEY;
+  if (!endpoint || !key) throw new Error("AZURE_LANGUAGE_* missing");
+  return new TextAnalyticsClient(endpoint, new AzureKeyCredential(key));
+}
 
-export const mediaContainer = blobServiceClient?.getContainerClient(
-  process.env.AZURE_MEDIA_CONTAINER,
-);
+export async function getSpeechSdk() {
+  const mod = await import("microsoft-cognitiveservices-speech-sdk");
+  return mod.default || mod;
+}
 
 export async function uploadToAzure(filePath, originalName, mimeType) {
-  if (!blobServiceClient) {
-    return { url: `/uploads/${path.basename(filePath)}`, filename: path.basename(filePath) };
-  }
-  const container = mimeType.startsWith('audio/') ? audioContainer : mediaContainer;
+  const blobServiceClient = await getBlobServiceClient();
+  const audioContainer = blobServiceClient.getContainerClient(process.env.AZURE_AUDIO_CONTAINER);
+  const mediaContainer = blobServiceClient.getContainerClient(process.env.AZURE_MEDIA_CONTAINER);
+  const container = mimeType.startsWith("audio/") ? audioContainer : mediaContainer;
   const blobName = `${Date.now()}-${crypto.randomUUID()}${path.extname(originalName)}`;
   const blockBlobClient = container.getBlockBlobClient(blobName);
   const data = await fs.promises.readFile(filePath);
-  await blockBlobClient.uploadData(data, {
-    blobHTTPHeaders: { blobContentType: mimeType },
-  });
+  await blockBlobClient.uploadData(data, { blobHTTPHeaders: { blobContentType: mimeType } });
   await fs.promises.unlink(filePath).catch(() => {});
   return { url: blockBlobClient.url, filename: blobName };
 }
 
-export const speechConfig =
-  process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION
-    ? sdk.SpeechConfig.fromSubscription(
-        process.env.AZURE_SPEECH_KEY,
-        process.env.AZURE_SPEECH_REGION,
-      )
-    : null;
-if (speechConfig) {
-  speechConfig.speechRecognitionLanguage = 'en-US';
-}
-
-export const textClient =
-  process.env.AZURE_LANGUAGE_KEY && process.env.AZURE_LANGUAGE_ENDPOINT
-    ? new TextAnalyticsClient(
-        process.env.AZURE_LANGUAGE_ENDPOINT,
-        new AzureKeyCredential(process.env.AZURE_LANGUAGE_KEY),
-      )
-    : null;
-
-const allowedOrigins = process.env.CORS_ORIGIN || '*';
+const allowedOrigins = process.env.CORS_ORIGIN || "*";
 export function jsonResponse(status, body) {
   return {
     status,
     headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': allowedOrigins,
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": allowedOrigins,
     },
     body,
   };

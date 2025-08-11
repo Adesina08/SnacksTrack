@@ -1,4 +1,4 @@
-import { textClient, jsonResponse } from '../shared.js';
+import { jsonResponse, getTextAnalyticsClient } from "../shared.js";
 
 export default async function (context, req) {
   const { text } = req.body || {};
@@ -7,13 +7,11 @@ export default async function (context, req) {
     return;
   }
   try {
-    if (!textClient) {
-      throw new Error('Azure Text Analytics not configured');
-    }
-    const [sentimentResult] = await textClient.analyzeSentiment([text]);
+    const client = await getTextAnalyticsClient();
+    const [sentimentResult] = await client.analyzeSentiment([text]);
     const sentiment = sentimentResult.sentiment;
     const confidence = sentimentResult.confidenceScores[sentiment];
-    const [keyResult] = await textClient.extractKeyPhrases([text]);
+    const [keyResult] = await client.extractKeyPhrases([text]);
     context.res = jsonResponse(200, {
       sentiment,
       confidence,

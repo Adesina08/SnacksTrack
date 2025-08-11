@@ -14,6 +14,7 @@ import Navigation from "@/components/Navigation";
 import { localDbOperations as dbOperations } from "@/lib/api-client";
 import { authUtils } from "@/lib/auth";
 import { azureAI, AzureAIAnalysis } from "@/lib/azure-ai";
+import { transcribeAudio } from "@/lib/transcribe";
 import { getLocalStorage } from "@/lib/local-storage";
 import { MediaCompressor } from "@/lib/media-compression";
 import { LocationService, LocationData } from "@/lib/location";
@@ -138,9 +139,8 @@ const LogConsumption = () => {
 
       // Transcribe audio/video
       if (file.type.includes('audio') || file.type.includes('video')) {
-        transcription = await azureAI.transcribeAudio(file, (p) => {
-          setAnalysisProgress(p / 2);
-        });
+        transcription = await transcribeAudio(file);
+        setAnalysisProgress(50);
       }
 
       // Analyze consumption data

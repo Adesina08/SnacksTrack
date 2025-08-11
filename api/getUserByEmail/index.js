@@ -2,8 +2,10 @@ import { pool, dbReady } from '../db.js';
 import { jsonResponse } from '../shared.js';
 
 export default async function (context, req) {
-  if (!dbReady) {
-    context.log('Database failed to initialize');
+  try {
+    await dbReady();
+  } catch (err) {
+    context.log('Database failed to initialize', err);
     context.res = jsonResponse(503, { message: 'Service Unavailable' });
     return;
   }
