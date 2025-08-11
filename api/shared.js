@@ -22,6 +22,7 @@ export async function getSpeechSdk() {
   return mod.default || mod;
 }
 
+
 export async function uploadToAzure(filePath, originalName, mimeType) {
   const blobServiceClient = await getBlobServiceClient();
   const audioContainer = blobServiceClient.getContainerClient(process.env.AZURE_AUDIO_CONTAINER);
