@@ -1,4 +1,4 @@
-// /api/db.js  (ESM)
+// /api/db.js
 import pg from "pg";
 const { Pool } = pg;
 
