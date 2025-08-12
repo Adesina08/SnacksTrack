@@ -33,10 +33,11 @@ export default async function (context, req) {
       return;
     }
 
+    // ✅ FIXED: 8 placeholders for the 8 params, then NOW() for created_at
     const sql = `
       INSERT INTO consumption_logs
       (user_id, product_name, brand, category, amount, currency, companions, notes, created_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW())
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW())
       RETURNING id
     `;
     const params = [userId, productName, brand, category, amountSpent, currency, companions, notes];
