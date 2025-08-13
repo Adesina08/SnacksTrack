@@ -17,7 +17,7 @@ const pick = (obj, ...keys) => {
 /**
  * Accepts payloads from:
  * - your manual form (productName, brand, category, amountSpent, companions, notes)
- * - AI capture (may send snack/snacks, mood, amount, transcript/text/whatYouSaid, etc.)
+ * - AI capture (may send nigerianFood/nigerianFoods, mood, amount, transcript/text/whatYouSaid, etc.)
  */
 export async function saveLog(body, context) {
   const b = body || {};
@@ -28,9 +28,12 @@ export async function saveLog(body, context) {
   // primary product fields
   const product =
     S(pick(b, "product", "productName", "product_name", "name")) ||
-    S(pick(b, "snack", "item")) ||
+    S(pick(b, "snack", "item", "food")) ||
+    (Array.isArray(b.nigerianFoods) && S(b.nigerianFoods[0])) ||
+    (Array.isArray(analysis.nigerianFoods) && S(analysis.nigerianFoods[0])) ||
     (Array.isArray(b.snacks) && S(b.snacks[0])) ||
     (Array.isArray(analysis.snacks) && S(analysis.snacks[0])) ||
+    S(analysis.nigerianFood) ||
     S(analysis.snack) ||
     null;
 

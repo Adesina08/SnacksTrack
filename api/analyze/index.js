@@ -66,27 +66,30 @@ export default async function (context, req) {
       }
     }
 
-    // Snacks detection
-    const SNACKS = new Set([
-      "chips","plantain chips","crisps","biscuit","biscuits","cookie","cookies",
-      "cake","cupcake","chocolate","candy","sweet","sweets","popcorn","nuts","peanuts",
-      "granola bar","energy bar","yogurt","yoghurt","ice cream","meat pie","sausage roll",
-      "gala","puff puff","chin chin","meatpie","pie","donut","doughnut","shawarma","buns"
+    // Nigerian foods detection
+    const NIGERIAN_FOODS = new Set([
+      "jollof rice","suya","pounded yam","egusi","pepper soup","chin chin",
+      "plantain","akara","moi moi","fufu","garri","puff puff","meat pie",
+      "meatpie","gala","buns","shawarma","chips","plantain chips","crisps",
+      "biscuit","biscuits","cookie","cookies","cake","cupcake","chocolate",
+      "candy","sweet","sweets","popcorn","nuts","peanuts","granola bar",
+      "energy bar","yogurt","yoghurt","ice cream","sausage roll","pie",
+      "donut","doughnut"
     ]);
     function norm(s) { return s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").trim(); }
     const candidates = new Set();
     for (const kp of (phrases?.keyPhrases || [])) {
       const k = norm(kp);
-      if (SNACKS.has(k)) candidates.add(k);
-      for (const t of k.split(/\s+/)) if (SNACKS.has(t)) candidates.add(t);
+      if (NIGERIAN_FOODS.has(k)) candidates.add(k);
+      for (const t of k.split(/\s+/)) if (NIGERIAN_FOODS.has(t)) candidates.add(t);
     }
     for (const t of norm(text).split(/\s+/)) {
       if (!t) continue;
       const s = t.endsWith("s") ? t.slice(0, -1) : t;
-      if (SNACKS.has(t)) candidates.add(t);
-      if (SNACKS.has(s)) candidates.add(s);
+      if (NIGERIAN_FOODS.has(t)) candidates.add(t);
+      if (NIGERIAN_FOODS.has(s)) candidates.add(s);
     }
-    const snacks = Array.from(candidates).sort();
+    const nigerianFoods = Array.from(candidates).sort();
 
     context.res = jsonResponse(200, {
       // original fields kept
@@ -100,7 +103,7 @@ export default async function (context, req) {
       // tidy summary for your UI
       mood: label,
       confidence,
-      snacks,
+      nigerianFoods,
       amountSpent,
       said: text
     });
