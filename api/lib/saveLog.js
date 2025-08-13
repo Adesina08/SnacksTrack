@@ -24,7 +24,7 @@ export async function saveLog(body, context) {
 
   // product name from several possible fields
   const productName =
-    S(pick(b, "productName", "product_name", "name")) ||
+    S(pick(b, "productName", "product_name", "name", "product")) ||
     S(pick(b, "snack", "item")) ||
     (Array.isArray(b.snacks) && S(b.snacks[0])) ||
     (Array.isArray(analysis.snacks) && S(analysis.snacks[0])) ||

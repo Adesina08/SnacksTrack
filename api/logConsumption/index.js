@@ -13,7 +13,7 @@ export default async function (context, req) {
     const b = req.body || {};
 
     // REQUIRED
-    const productName = S(b.productName);
+    const productName = S(b.productName ?? b.product ?? b.name);
     const brand       = S(b.brand);
     const category    = S(b.category);
     const amountSpent = N(b.amountSpent ?? b.amount);

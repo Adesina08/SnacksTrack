@@ -7,7 +7,7 @@ export default async function (context, req) {
     if (req.method === "GET") {
       // Fetch recent logs without requiring a user identifier
       const r = await pool.query(
-        `SELECT id, product_name, brand, category, amount, currency, companions, notes, meal_details, created_at
+        `SELECT id, product_name AS product, brand, category, amount, currency, companions, notes, meal_details, created_at
          FROM consumption_logs
          ORDER BY created_at DESC
          LIMIT 50`
