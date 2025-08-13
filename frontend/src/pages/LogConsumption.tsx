@@ -224,6 +224,14 @@ const LogConsumption = () => {
       if (file.type.includes('audio') || file.type.includes('video')) {
         transcription = await transcribeAudio(file);
         setAnalysisProgress(50);
+        if (!transcription.trim()) {
+          toast({
+            title: "Transcription failed",
+            description: "No speech detected in the recording.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       // Analyze consumption data
