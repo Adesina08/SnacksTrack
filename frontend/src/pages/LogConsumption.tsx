@@ -240,7 +240,7 @@ const LogConsumption = () => {
       // Auto-fill form with AI analysis (no manual corrections)
       setFormData({
         ...initialFormState,
-        product: analysis.snacks?.[0] || 'Unknown snack',
+        product: analysis.nigerianFoods?.[0] || 'Unknown food',
         brand: 'Unknown',
         category: 'Other',
         companions: 'Unknown',
@@ -517,30 +517,26 @@ const LogConsumption = () => {
                       <div className="glass-effect rounded-lg p-4">
                         <h4 className="font-semibold text-primary mb-3">AI Analysis Results</h4>
                         <div className="grid grid-cols-2 gap-3 text-sm">
-                          {aiAnalysis.snacks && aiAnalysis.snacks.length > 0 && (
-                            <div>
-                              <span className="text-primary font-medium">Snacks:</span>
-                              <span className="ml-2 text-foreground">{aiAnalysis.snacks.join(', ')}</span>
-                            </div>
-                          )}
-                          {aiAnalysis.confidence !== null && (
-                            <div>
-                              <span className="text-primary font-medium">Confidence:</span>
-                              <span className="ml-2 text-foreground">{Math.round(aiAnalysis.confidence * 100)}%</span>
-                            </div>
-                          )}
-                          {aiAnalysis.mood && (
-                            <div>
-                              <span className="text-primary font-medium">Mood:</span>
-                              <span className="ml-2 text-foreground">{aiAnalysis.mood}</span>
-                            </div>
-                          )}
-                          {aiAnalysis.amountSpent && (
-                            <div>
-                              <span className="text-primary font-medium">Est. Spend:</span>
-                              <span className="ml-2 text-foreground">{aiAnalysis.amountSpent.currency === 'NGN' ? '₦' : aiAnalysis.amountSpent.currency} {aiAnalysis.amountSpent.amount}</span>
-                            </div>
-                          )}
+                          <div>
+                            <span className="text-primary font-medium">Nigerian Foods:</span>
+                            <span className="ml-2 text-foreground">{aiAnalysis.nigerianFoods?.join(', ') || ''}</span>
+                          </div>
+                          <div>
+                            <span className="text-primary font-medium">Confidence:</span>
+                            <span className="ml-2 text-foreground">{aiAnalysis.confidence != null ? `${Math.round(aiAnalysis.confidence * 100)}%` : ''}</span>
+                          </div>
+                          <div>
+                            <span className="text-primary font-medium">Mood:</span>
+                            <span className="ml-2 text-foreground">{aiAnalysis.mood || ''}</span>
+                          </div>
+                          <div>
+                            <span className="text-primary font-medium">Amount Spent:</span>
+                            <span className="ml-2 text-foreground">
+                              {aiAnalysis.amountSpent
+                                ? `${aiAnalysis.amountSpent.currency === 'NGN' ? '₦' : aiAnalysis.amountSpent.currency} ${aiAnalysis.amountSpent.amount}`
+                                : ''}
+                            </span>
+                          </div>
                         </div>
                         {aiAnalysis.said && (
                           <div className="mt-3">

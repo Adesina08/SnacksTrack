@@ -2,7 +2,7 @@
 export type AzureAIAnalysis = {
   mood: string;
   confidence: number | null;
-  snacks: string[];
+  nigerianFoods: string[];
   amountSpent: { currency: string; amount: number; text: string } | null;
   said: string;
   // keep originals (optional)
