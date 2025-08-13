@@ -163,16 +163,19 @@ const LogConsumption = () => {
       };
 
       recorder.onstop = async () => {
+        const currentUser = await authUtils.getCurrentUser();
+        const userId = currentUser?.id;
+        const timestamp = new Date().toISOString().replace(/\[:.]/g, '-');
         const isVideo = recordingType === 'video';
         const mimeType = isVideo ? 'video/webm' : 'audio/webm';
         const blob = new Blob(chunks, { type: mimeType });
 
         let file: File;
         if (isVideo) {
-          file = new File([blob], `naija-meal-${Date.now()}.webm`, { type: mimeType });
+          file = new File([blob], `${userId || 'anonymous'}_${timestamp}.webm`, { type: mimeType });
         } else {
           const wavBlob = await convertToWav(blob);
-          file = new File([wavBlob], `naija-meal-${Date.now()}.wav`, {
+          file = new File([wavBlob], `${userId || 'anonymous'}_${timestamp}.wav`, {
             type: 'audio/wav'
           });
         }
