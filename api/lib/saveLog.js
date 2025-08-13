@@ -15,7 +15,7 @@ const pick = (obj, ...keys) => {
 
 /**
  * Accepts payloads from:
- * - your manual form (mealDetails, productName, brand, category, amountSpent, companions, notes)
+ * - your manual form (productName, brand, category, amountSpent, companions, notes)
  * - AI capture (may send snack/snacks, mood, amount, transcript/text/whatYouSaid, etc.)
  */
 export async function saveLog(body, context) {
@@ -31,7 +31,6 @@ export async function saveLog(body, context) {
     S(analysis.snack) ||
     null;
 
-  const mealDetails = S(pick(b, "mealDetails", "meal_details"));
   const brand       = S(pick(b, "brand", "brandName"));
   const category    = S(pick(b, "category", "categoryName"));
 
@@ -56,11 +55,11 @@ export async function saveLog(body, context) {
   // If your table has no mood column, drop mood in the INSERT & params.
   const sql = `
     INSERT INTO consumption_logs
-      (meal_details, product_name, brand, category, amount, currency, companions, notes, created_at)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW())
+      (product_name, brand, category, amount, currency, companions, notes, created_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7, NOW())
     RETURNING id
   `;
-  const params = [mealDetails, productName, brand, category, amountSpent, currency, companions, notes];
+  const params = [productName, brand, category, amountSpent, currency, companions, notes];
 
   const result = await pool.query(sql, params);
   return Number(result.rows[0].id);
