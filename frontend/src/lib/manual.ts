@@ -1,6 +1,5 @@
 // /frontend/src/lib/manual.ts
 export type ManualEntryPayload = {
-  userId: number | string;
   productName: string;
   brand?: string | null;
   category?: string | null;

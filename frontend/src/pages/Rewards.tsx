@@ -40,9 +40,7 @@ const Rewards = () => {
         setUser(currentUser);
         setUserPoints(currentUser.points || 0);
 
-        const logs = await localDbOperations.getUserConsumptionLogs(
-          currentUser.id,
-        );
+        const logs = await localDbOperations.getUserConsumptionLogs();
         setAchievements(calculateAchievements(logs, currentUser));
       }
 

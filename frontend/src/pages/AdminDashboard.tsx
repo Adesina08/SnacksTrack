@@ -48,7 +48,7 @@ const AdminDashboard = () => {
       // Calculate stats
       const totalLogs = logs.length;
       const totalPoints = logs.reduce((sum: number, log: ConsumptionLog) => sum + (log.points || 0), 0);
-      const uniqueUsers = new Set(logs.map((log: ConsumptionLog) => log.userId)).size;
+      const uniqueUsers = new Set(logs.map((log: ConsumptionLog) => log.users?.email).filter(Boolean)).size;
       
       setStats({
         totalUsers: uniqueUsers,

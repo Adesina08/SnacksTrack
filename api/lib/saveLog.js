@@ -13,20 +13,6 @@ const pick = (obj, ...keys) => {
   return undefined;
 };
 
-async function resolveUserId(b) {
-  // Prefer numeric id if provided
-  const uid = pick(b, "userId", "user_id");
-  if (uid && Number(uid)) return Number(uid);
-
-  // fallback: lookup by email if supplied
-  const email = pick(b, "email", "userEmail", "user_email");
-  if (email) {
-    const q = await pool.query("SELECT id FROM users WHERE email=$1 LIMIT 1", [String(email).toLowerCase()]);
-    if (q.rowCount) return Number(q.rows[0].id);
-  }
-  return null;
-}
-
 /**
  * Accepts payloads from:
  * - your manual form (mealDetails, productName, brand, category, amountSpent, companions, notes)
@@ -35,8 +21,6 @@ async function resolveUserId(b) {
 export async function saveLog(body, context) {
   const b = body || {};
   const analysis = b.analysis || {}; // if AI bundles fields under "analysis"
-
-  const userId = await resolveUserId(b);
 
   // product name from several possible fields
   const productName =
@@ -63,8 +47,8 @@ export async function saveLog(body, context) {
     S(pick(b, "transcript", "text", "whatYouSaid")) ||
     S(analysis.whatYouSaid);
 
-  if (!userId || !productName) {
-    const err = new Error("userId (or email) and product/productName are required");
+  if (!productName) {
+    const err = new Error("product/productName is required");
     err.statusCode = 400;
     throw err;
   }
@@ -72,11 +56,11 @@ export async function saveLog(body, context) {
   // If your table has no mood column, drop mood in the INSERT & params.
   const sql = `
     INSERT INTO consumption_logs
-      (user_id, meal_details, product_name, brand, category, amount, currency, companions, notes, created_at)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW())
+      (meal_details, product_name, brand, category, amount, currency, companions, notes, created_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW())
     RETURNING id
   `;
-  const params = [userId, mealDetails, productName, brand, category, amountSpent, currency, companions, notes];
+  const params = [mealDetails, productName, brand, category, amountSpent, currency, companions, notes];
 
   const result = await pool.query(sql, params);
   return Number(result.rows[0].id);

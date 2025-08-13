@@ -13,10 +13,7 @@ export default async function (context, req) {
     const b = req.body || {};
 
     // REQUIRED
-    const userId      = Number(b.userId);
     const productName = S(b.productName);
-
-    // OPTIONALS
     const brand       = S(b.brand);
     const category    = S(b.category);
     const amountSpent = N(b.amountSpent ?? b.amount);
@@ -24,23 +21,23 @@ export default async function (context, req) {
     const companions  = S(b.companions);
     const notes       = S(b.notes ?? b.note);
 
-    if (!userId || !productName) {
+    // Manual entry must have all fields except notes
+    if (!productName || !brand || !category || amountSpent == null || !currency || !companions) {
       context.res = {
         status: 400,
         headers: { "content-type": "application/json" },
-        body: { error: "userId and productName are required" }
+        body: { error: "Missing required fields" }
       };
       return;
     }
 
-    // ✅ FIXED: 8 placeholders for the 8 params, then NOW() for created_at
     const sql = `
       INSERT INTO consumption_logs
-      (user_id, product_name, brand, category, amount, currency, companions, notes, created_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW())
+      (product_name, brand, category, amount, currency, companions, notes, created_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7, NOW())
       RETURNING id
     `;
-    const params = [userId, productName, brand, category, amountSpent, currency, companions, notes];
+    const params = [productName, brand, category, amountSpent, currency, companions, notes];
 
     const result = await pool.query(sql, params);
 

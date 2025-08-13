@@ -198,6 +198,20 @@ const LogConsumption = () => {
         return;
       }
 
+      // Ensure manual entries have all required fields (except notes)
+      if (captureMethod === 'manual') {
+        const { product, brand, category, spend, companions } = formData;
+        if (!product || !brand || !category || !spend || !companions) {
+          toast({
+            title: "Missing information",
+            description: "Please complete all fields before submitting.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       let mediaUrl = '';
 
       // Compress and upload locally if a file was recorded
@@ -231,7 +245,6 @@ const LogConsumption = () => {
 
       // Create consumption log
       const logData = {
-        userId: currentUser.id,
         product: formData.product,
         brand: formData.brand,
         category: formData.category,

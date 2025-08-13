@@ -19,7 +19,6 @@ export interface User {
 
 export interface ConsumptionLog {
   id: string;
-  userId: string;
   product: string;
   brand?: string;
   category: string;
@@ -99,18 +98,17 @@ export const dbOperations = {
       .insert(logData)
       .select()
       .single();
-    
+
     if (error) throw error;
     return data;
   },
 
-  async getUserConsumptionLogs(userId: string) {
+  async getUserConsumptionLogs() {
     const { data, error } = await supabase
       .from('consumption_logs')
       .select('*')
-      .eq('userId', userId)
       .order('createdAt', { ascending: false });
-    
+
     if (error) throw error;
     return data;
   },
