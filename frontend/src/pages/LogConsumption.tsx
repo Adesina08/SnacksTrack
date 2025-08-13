@@ -20,17 +20,19 @@ import { MediaCompressor } from "@/lib/media-compression";
 import { LocationService, LocationData } from "@/lib/location";
 import { convertToWav } from "@/lib/audio-utils";
 
+const initialFormState = {
+  product: "",
+  brand: "",
+  category: "",
+  spend: "",
+  companions: "",
+  location: "",
+  notes: "",
+};
+
 const LogConsumption = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    product: "",
-    brand: "",
-    category: "",
-    spend: "",
-    companions: "",
-    location: "",
-    notes: "",
-  });
+  const [formData, setFormData] = useState(initialFormState);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
@@ -45,6 +47,83 @@ const LogConsumption = () => {
   const categories = ["Jollof Rice", "Suya", "Pounded Yam", "Egusi", "Pepper Soup", "Chin Chin", "Plantain", "Akara", "Moi Moi", "Other"];
   const companionOptions = ["Alone", "With friends", "With family", "With colleagues", "With partner"];
 
+  const renderMealFields = () => (
+    <>
+      <div>
+        <Label htmlFor="product">Product Name</Label>
+        <Input
+          id="product"
+          value={formData.product}
+          onChange={(e) => setFormData({ ...formData, product: e.target.value })}
+          className="glass-effect"
+        />
+      </div>
+      <div>
+        <Label htmlFor="brand">Brand</Label>
+        <Input
+          id="brand"
+          value={formData.brand}
+          onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+          className="glass-effect"
+        />
+      </div>
+      <div>
+        <Label htmlFor="category">Category</Label>
+        <Select
+          value={formData.category}
+          onValueChange={(value) => setFormData({ ...formData, category: value })}
+        >
+          <SelectTrigger id="category" className="glass-effect">
+            <SelectValue placeholder="Select a category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((cat) => (
+              <SelectItem key={cat} value={cat}>
+                {cat}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="spend">Amount Spent</Label>
+        <Input
+          id="spend"
+          value={formData.spend}
+          onChange={(e) => setFormData({ ...formData, spend: e.target.value })}
+          className="glass-effect"
+        />
+      </div>
+      <div>
+        <Label htmlFor="companions">Companion(s)</Label>
+        <Select
+          value={formData.companions}
+          onValueChange={(value) => setFormData({ ...formData, companions: value })}
+        >
+          <SelectTrigger id="companions" className="glass-effect">
+            <SelectValue placeholder="Who were you with?" />
+          </SelectTrigger>
+          <SelectContent>
+            {companionOptions.map((opt) => (
+              <SelectItem key={opt} value={opt}>
+                {opt}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="notes">Notes</Label>
+        <Textarea
+          id="notes"
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          className="glass-effect"
+        />
+      </div>
+    </>
+  );
+
   useEffect(() => {
     getCurrentLocation();
   }, []);
@@ -53,6 +132,7 @@ const LogConsumption = () => {
     if (captureMethod === 'manual') {
       setSelectedFile(null);
       setAiAnalysis(null);
+      setFormData(initialFormState);
     }
   }, [captureMethod]);
 
@@ -153,17 +233,19 @@ const LogConsumption = () => {
       );
       
       setAiAnalysis(analysis);
-      
-      // Auto-fill form with AI analysis
-      setFormData(prev => ({
-        ...prev,
-        product: analysis.detectedProducts?.[0] || '',
-        brand: analysis.brands?.[0] || '',
-        category: analysis.categories?.[0] || '',
-        spend: analysis.estimatedSpend?.replace('$', '₦') || '',
-        location: analysis.location || '',
-        notes: analysis.transcription || ''
-      }));
+
+      // Auto-fill form with AI analysis (no manual corrections)
+      setFormData({
+        ...initialFormState,
+        product: analysis.snacks?.[0] || 'Unknown snack',
+        brand: 'Unknown',
+        category: 'Other',
+        companions: 'Unknown',
+        spend: analysis.amountSpent
+          ? `${analysis.amountSpent.currency === 'NGN' ? '₦' : analysis.amountSpent.currency} ${analysis.amountSpent.amount}`
+          : '',
+        notes: analysis.said || ''
+      });
 
       toast({
         title: "AI Analysis Complete! 🍲",
@@ -198,7 +280,7 @@ const LogConsumption = () => {
         return;
       }
 
-      // Ensure manual entries have all required fields (except notes)
+      // Validate required fields per capture method
       if (captureMethod === 'manual') {
         const { product, brand, category, spend, companions } = formData;
         if (!product || !brand || !category || !spend || !companions) {
@@ -210,6 +292,14 @@ const LogConsumption = () => {
           setIsSubmitting(false);
           return;
         }
+      } else if (!formData.product) {
+        toast({
+          title: "Missing snack name",
+          description: "AI couldn't detect a snack. Please record again.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
       }
 
       let mediaUrl = '';
@@ -422,47 +512,46 @@ const LogConsumption = () => {
 
                     {aiAnalysis && (
                       <div className="glass-effect rounded-lg p-4">
-                        <h4 className="font-semibold text-primary mb-3">Azure AI Analysis Results</h4>
+                        <h4 className="font-semibold text-primary mb-3">AI Analysis Results</h4>
                         <div className="grid grid-cols-2 gap-3 text-sm">
-                          {aiAnalysis.detectedProducts && (
+                          {aiAnalysis.snacks && aiAnalysis.snacks.length > 0 && (
                             <div>
                               <span className="text-primary font-medium">Snacks:</span>
-                              <span className="ml-2 text-foreground">{aiAnalysis.detectedProducts.join(', ')}</span>
+                              <span className="ml-2 text-foreground">{aiAnalysis.snacks.join(', ')}</span>
                             </div>
                           )}
-                          {aiAnalysis.confidence && (
+                          {aiAnalysis.confidence !== null && (
                             <div>
                               <span className="text-primary font-medium">Confidence:</span>
                               <span className="ml-2 text-foreground">{Math.round(aiAnalysis.confidence * 100)}%</span>
                             </div>
                           )}
-                          {aiAnalysis.sentiment && (
+                          {aiAnalysis.mood && (
                             <div>
                               <span className="text-primary font-medium">Mood:</span>
-                              <span className="ml-2 text-foreground">{aiAnalysis.sentiment}</span>
+                              <span className="ml-2 text-foreground">{aiAnalysis.mood}</span>
                             </div>
                           )}
-                          {aiAnalysis.estimatedSpend && (
+                          {aiAnalysis.amountSpent && (
                             <div>
                               <span className="text-primary font-medium">Est. Spend:</span>
-                              <span className="ml-2 text-foreground">₦{aiAnalysis.estimatedSpend?.replace('$', '')}</span>
+                              <span className="ml-2 text-foreground">{aiAnalysis.amountSpent.currency === 'NGN' ? '₦' : aiAnalysis.amountSpent.currency} {aiAnalysis.amountSpent.amount}</span>
                             </div>
                           )}
                         </div>
-                        {aiAnalysis.transcription && (
+                        {aiAnalysis.said && (
                           <div className="mt-3">
                             <span className="text-primary font-medium text-sm">What you said:</span>
-                            <p className="text-foreground text-sm mt-1">{aiAnalysis.transcription}</p>
+                            <p className="text-foreground text-sm mt-1">{aiAnalysis.said}</p>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* Submit Button - Only shown after AI analysis */}
                     <Button
                       type="submit"
                       className="w-full gradient-primary hover-glow text-white shadow-lg"
-                      disabled={isSubmitting || isAnalyzing || !aiAnalysis}
+                      disabled={isSubmitting || isAnalyzing}
                     >
                       {isSubmitting ? (
                         <>
@@ -492,78 +581,7 @@ const LogConsumption = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="product">Product Name</Label>
-                  <Input
-                    id="product"
-                    value={formData.product}
-                    onChange={(e) => setFormData({ ...formData, product: e.target.value })}
-                    className="glass-effect"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="brand">Brand</Label>
-                  <Input
-                    id="brand"
-                    value={formData.brand}
-                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                    className="glass-effect"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="category">Category</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger id="category" className="glass-effect">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="spend">Amount Spent</Label>
-                  <Input
-                    id="spend"
-                    value={formData.spend}
-                    onChange={(e) => setFormData({ ...formData, spend: e.target.value })}
-                    className="glass-effect"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="companions">Companion(s)</Label>
-                  <Select
-                    value={formData.companions}
-                    onValueChange={(value) => setFormData({ ...formData, companions: value })}
-                  >
-                    <SelectTrigger id="companions" className="glass-effect">
-                      <SelectValue placeholder="Who were you with?" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companionOptions.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="glass-effect"
-                  />
-                </div>
+                {renderMealFields()}
                 <Button
                   type="submit"
                   className="w-full gradient-primary hover-glow text-white shadow-lg"
