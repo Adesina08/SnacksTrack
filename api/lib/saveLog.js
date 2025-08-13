@@ -1,5 +1,6 @@
 // /api/lib/saveLog.js
 import { pool } from "../db.js";
+import { randomUUID } from "crypto";
 
 // helpers
 const S = (v) => (v == null ? null : String(v).trim());
@@ -22,45 +23,78 @@ export async function saveLog(body, context) {
   const b = body || {};
   const analysis = b.analysis || {}; // if AI bundles fields under "analysis"
 
-  // product name from several possible fields
-  const productName =
-    S(pick(b, "productName", "product_name", "name", "product")) ||
+  const id = randomUUID();
+
+  // primary product fields
+  const product =
+    S(pick(b, "product", "productName", "product_name", "name")) ||
     S(pick(b, "snack", "item")) ||
     (Array.isArray(b.snacks) && S(b.snacks[0])) ||
     (Array.isArray(analysis.snacks) && S(analysis.snacks[0])) ||
     S(analysis.snack) ||
     null;
 
+  const productName =
+    S(pick(b, "productName", "product_name")) ||
+    product;
+
   const brand       = S(pick(b, "brand", "brandName"));
   const category    = S(pick(b, "category", "categoryName"));
 
-  const amountSpent =
-    N(pick(b, "amountSpent", "amount", "price", "cost")) ??
-    N(analysis.amountSpent ?? analysis.amount);
+  const spend =
+    N(pick(b, "spend", "amountSpent", "price", "cost"));
+
+  const amount =
+    N(pick(b, "amount")) ?? N(analysis.amount);
 
   const currency    = S(pick(b, "currency")) || "NGN";
   const companions  = S(pick(b, "companions", "companion", "who", "whoWereYouWith"));
-  const mood        = S(pick(b, "mood")) || S(analysis.mood);
+  const location    = S(pick(b, "location", "place"));
+
   const notes       =
     S(pick(b, "notes", "note", "description", "comment")) ||
     S(pick(b, "transcript", "text", "whatYouSaid")) ||
     S(analysis.whatYouSaid);
 
-  if (!productName) {
+  const mediaUrl    = S(pick(b, "mediaUrl", "media_url"));
+  const mediaType   = S(pick(b, "mediaType", "media_type"));
+  const captureMethod = S(pick(b, "captureMethod", "capture_method")) || "manual";
+  const aiAnalysis    = pick(b, "aiAnalysis", "ai_analysis", "analysis") || null;
+  const points        = N(pick(b, "points"));
+
+  if (!product && !productName) {
     const err = new Error("product/productName is required");
     err.statusCode = 400;
     throw err;
   }
 
-  // If your table has no mood column, drop mood in the INSERT & params.
   const sql = `
     INSERT INTO consumption_logs
-      (product_name, brand, category, amount, currency, companions, notes, created_at)
-    VALUES ($1,$2,$3,$4,$5,$6,$7, NOW())
+      (id, product, brand, category, spend, companions, location, notes,
+       media_url, media_type, capture_method, ai_analysis, created_at,
+       points, product_name, amount, currency)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),$13,$14,$15,$16)
     RETURNING id
   `;
-  const params = [productName, brand, category, amountSpent, currency, companions, notes];
+  const params = [
+    id,
+    product,
+    brand,
+    category,
+    spend,
+    companions,
+    location,
+    notes,
+    mediaUrl,
+    mediaType,
+    captureMethod,
+    aiAnalysis ? JSON.stringify(aiAnalysis) : null,
+    points,
+    productName,
+    amount,
+    currency
+  ];
 
   const result = await pool.query(sql, params);
-  return Number(result.rows[0].id);
+  return result.rows[0].id;
 }

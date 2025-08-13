@@ -1,28 +1,17 @@
 // /api/logConsumption/index.js
-import { pool } from "../db.js";
-
-function S(v) { return v == null ? null : String(v).trim(); }
-function N(v) {
-  if (v === "" || v == null) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
+import { saveLog } from "../lib/saveLog.js";
 
 export default async function (context, req) {
   try {
     const b = req.body || {};
 
-    // REQUIRED
-    const productName = S(b.productName ?? b.product ?? b.name);
-    const brand       = S(b.brand);
-    const category    = S(b.category);
-    const amountSpent = N(b.amountSpent ?? b.amount);
-    const currency    = S(b.currency) || "NGN";
-    const companions  = S(b.companions);
-    const notes       = S(b.notes ?? b.note);
+    const product = b.productName ?? b.product ?? b.name;
+    const brand = b.brand;
+    const category = b.category;
+    const spend = b.amountSpent ?? b.spend ?? b.amount;
+    const companions = b.companions;
 
-    // Manual entry must have all fields except notes
-    if (!productName || !brand || !category || amountSpent == null || !currency || !companions) {
+    if (!product || !brand || !category || spend == null || !companions) {
       context.res = {
         status: 400,
         headers: { "content-type": "application/json" },
@@ -31,20 +20,12 @@ export default async function (context, req) {
       return;
     }
 
-    const sql = `
-      INSERT INTO consumption_logs
-      (product_name, brand, category, amount, currency, companions, notes, created_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7, NOW())
-      RETURNING id
-    `;
-    const params = [productName, brand, category, amountSpent, currency, companions, notes];
-
-    const result = await pool.query(sql, params);
+    const id = await saveLog({ ...b, productName: product, spend }, context);
 
     context.res = {
       status: 200,
       headers: { "content-type": "application/json" },
-      body: { ok: true, id: result.rows[0].id }
+      body: { ok: true, id }
     };
   } catch (err) {
     context.log.error("logConsumption error", err);
