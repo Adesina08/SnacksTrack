@@ -56,9 +56,7 @@ const Dashboard = () => {
         setUser(currentUser);
 
         // Load user's consumption logs
-        const logs = await localDbOperations.getUserConsumptionLogs(
-          currentUser.id,
-        );
+        const logs = await localDbOperations.getUserConsumptionLogs();
         setRecentLogs(logs.slice(0, 3)); // Get latest 3 logs
 
         // Calculate dashboard stats from logs

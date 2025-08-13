@@ -11,7 +11,6 @@ export interface User {
 
 export interface ConsumptionLog {
   id: string;
-  userId: string;
   product: string;
   brand?: string;
   category: string;
@@ -114,8 +113,8 @@ export const localDbOperations = {
     });
   },
 
-  async getUserConsumptionLogs(userId: string): Promise<ConsumptionLog[]> {
-    return request<ConsumptionLog[]>(`logs/user/${userId}`);
+  async getUserConsumptionLogs(): Promise<ConsumptionLog[]> {
+    return request<ConsumptionLog[]>('logs');
   },
 
   async getAllConsumptionLogs(): Promise<ConsumptionLog[]> {

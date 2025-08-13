@@ -77,9 +77,7 @@ const Profile = () => {
       const currentUser = await authUtils.getCurrentUser();
       if (currentUser) {
         // Load user's consumption logs to calculate stats
-        const logs = await dbOperations.getUserConsumptionLogs(
-          currentUser.id,
-        );
+        const logs = await dbOperations.getUserConsumptionLogs();
 
         // Calculate streak
         const streak = calculateStreak(logs);

@@ -5,21 +5,14 @@ import { pool } from "../db.js";
 export default async function (context, req) {
   try {
     if (req.method === "GET") {
-      // Optional: let the app fetch recent logs
-      const userId = Number(req.query?.userId);
-      if (!userId) {
-        context.res = { status: 400, body: { error: "userId is required" } };
-        return;
-      }
+      // Fetch recent logs without requiring a user identifier
       const r = await pool.query(
         `SELECT id, product_name, brand, category, amount, currency, companions, notes, meal_details, created_at
          FROM consumption_logs
-         WHERE user_id=$1
          ORDER BY created_at DESC
-         LIMIT 50`,
-        [userId]
+         LIMIT 50`
       );
-      context.res = { status: 200, body: { ok: true, items: r.rows } };
+      context.res = { status: 200, body: r.rows };
       return;
     }
 

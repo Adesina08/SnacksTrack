@@ -13,7 +13,6 @@ export interface User {
 
 export interface ConsumptionLog {
   id: string;
-  userId: string;
   product: string;
   brand?: string;
   category: string;
@@ -85,7 +84,6 @@ export interface RegisterRequest {
 }
 
 export interface CreateConsumptionLogRequest {
-  userId: string;
   product: string;
   brand?: string;
   category: string;
