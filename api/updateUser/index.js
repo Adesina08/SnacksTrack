@@ -3,7 +3,7 @@ import { jsonResponse } from '../shared.js';
 
 export default async function (context, req) {
   const { id } = req.params;
-  const { firstName, lastName, phone } = req.body;
+  const { firstName, lastName, phone, avatarUrl } = req.body;
 
   if (!firstName || !lastName) {
     context.res = jsonResponse(400, { message: 'First name and last name are required' });
@@ -12,8 +12,8 @@ export default async function (context, req) {
 
   try {
     const { rows } = await pool.query(
-      'UPDATE users SET first_name = $1, last_name = $2, phone = $3 WHERE id = $4 RETURNING *',
-      [firstName, lastName, phone, id]
+      'UPDATE users SET first_name = $1, last_name = $2, phone = $3, avatar_url = $4 WHERE id = $5 RETURNING *',
+      [firstName, lastName, phone, avatarUrl || null, id],
     );
 
     if (rows.length === 0) {

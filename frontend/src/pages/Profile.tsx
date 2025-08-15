@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   User,
   Mail,
@@ -25,6 +25,7 @@ import {
   NotificationPreferences,
 } from "@/lib/notifications";
 import { localDbOperations } from "@/lib/api-client";
+import { getAzureStorage } from "@/lib/azure-storage";
 
 const Profile = () => {
   const [user, setUser] = useState<UserType | null>(null);
@@ -42,13 +43,69 @@ const Profile = () => {
     achievementAlerts: true,
     marketingEmails: false,
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarClick = () => fileInputRef.current?.click();
+
+  const handleAvatarChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const storage = getAzureStorage();
+    if (!storage) {
+      toast({
+        title: "Storage not configured",
+        description: "Please configure Azure Storage first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const upload = await storage.uploadFile(file);
+    if (!upload.success) {
+      toast({
+        title: "Upload failed",
+        description: upload.error || "Could not upload avatar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const updated = await localDbOperations.updateUser(user.id, {
+        avatarUrl: upload.url,
+      });
+      setUser(updated);
+      authUtils.cacheUser(updated);
+      toast({
+        title: "Avatar updated",
+        description: "Your profile picture has been updated.",
+      });
+    } catch (err) {
+      console.error("Error updating avatar:", err);
+      toast({
+        title: "Update failed",
+        description: "Could not save avatar.",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
+    const cached = authUtils.getCachedUser();
+    if (cached) {
+      setUser(cached);
+      setFormData({
+        firstName: cached.firstName,
+        lastName: cached.lastName,
+        phone: cached.phone || "",
+      });
+    }
+
     const loadProfileData = async () => {
       setIsLoading(true);
       try {
-        // Load user data
-        const currentUser = await authUtils.getCurrentUser();
+        const freshUser = await authUtils.refreshCurrentUser();
+        const currentUser = freshUser || cached;
         if (currentUser) {
           setUser(currentUser);
           setFormData({
@@ -57,7 +114,6 @@ const Profile = () => {
             phone: currentUser.phone || "",
           });
 
-          // Load user stats
           const logs = await localDbOperations.getUserConsumptionLogs();
           const streak = calculateStreak(logs);
 
@@ -91,7 +147,6 @@ const Profile = () => {
           setRecentActivity(recentLogs);
         }
 
-        // Load notification preferences
         const prefs = NotificationService.loadPreferences();
         setNotifications(prefs);
       } catch (error) {
@@ -107,6 +162,7 @@ const Profile = () => {
     };
 
     loadProfileData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const calculateStreak = (logs: any[]) => {
@@ -162,6 +218,7 @@ const Profile = () => {
       });
 
       setUser(updatedUser);
+      authUtils.cacheUser(updatedUser);
 
       toast({
         title: "Profile updated",
@@ -234,14 +291,27 @@ const Profile = () => {
                 <CardContent className="p-6 text-center">
                   <div className="relative inline-block mb-4">
                     <Avatar className="w-24 h-24">
+                      {user?.avatarUrl && (
+                        <AvatarImage src={user.avatarUrl} alt="avatar" />
+                      )}
                       <AvatarFallback className="gradient-primary text-white text-2xl">
                         {user?.firstName?.[0]}
                         {user?.lastName?.[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <button className="absolute bottom-0 right-0 w-8 h-8 gradient-primary rounded-full flex items-center justify-center text-white hover-glow">
+                    <button
+                      onClick={handleAvatarClick}
+                      className="absolute bottom-0 right-0 w-8 h-8 gradient-primary rounded-full flex items-center justify-center text-white hover-glow"
+                    >
                       <Camera className="h-4 w-4" />
                     </button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRef}
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
                   </div>
                   <h3 className="text-xl font-bold text-gray-800 mb-1">
                     {user?.firstName} {user?.lastName}

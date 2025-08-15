@@ -144,28 +144,52 @@ export const authUtils = {
 
   removeAuthToken() {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('cachedUser');
   },
 
-  async getCurrentUser(): Promise<User | null> {
+  cacheUser(user: User) {
+    localStorage.setItem('cachedUser', JSON.stringify(user));
+  },
+
+  getCachedUser(): User | null {
+    const raw = localStorage.getItem('cachedUser');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as User;
+    } catch {
+      return null;
+    }
+  },
+
+  async refreshCurrentUser(): Promise<User | null> {
     const token = this.getAuthToken();
     if (!token) return null;
-
     const payload = await this.verifyToken(token);
     if (!payload) {
       this.removeAuthToken();
       return null;
     }
-
     try {
       const user = await localDbOperations.getUserById(payload.userId);
       if (!user) {
         this.removeAuthToken();
         return null;
       }
+      this.cacheUser(user);
       return user;
-    } catch (error) {
+    } catch {
       this.removeAuthToken();
       return null;
     }
-  }
+  },
+
+  async getCurrentUser(): Promise<User | null> {
+    const cached = this.getCachedUser();
+    if (cached) {
+      // Refresh in background
+      this.refreshCurrentUser();
+      return cached;
+    }
+    return await this.refreshCurrentUser();
+  },
 };

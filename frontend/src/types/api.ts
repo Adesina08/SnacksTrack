@@ -6,6 +6,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone?: string;
+  avatarUrl?: string;
   passwordHash?: string; // Optional for frontend, required for backend
   createdAt: string;
   points: number;

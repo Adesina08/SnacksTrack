@@ -4,6 +4,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone?: string;
+  avatarUrl?: string;
   passwordHash?: string;
   createdAt: string;
   points: number;
@@ -106,10 +107,13 @@ export const localDbOperations = {
     });
   },
 
-  async updateUser(id: string, data: Partial<Pick<User, 'firstName' | 'lastName' | 'phone'>>): Promise<User> {
+  async updateUser(
+    id: string,
+    data: Partial<Pick<User, 'firstName' | 'lastName' | 'phone' | 'avatarUrl'>>,
+  ): Promise<User> {
     return request<User>(`users/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
   },
 
