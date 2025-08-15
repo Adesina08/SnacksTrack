@@ -136,9 +136,22 @@ export const dbOperations = {
       .from('consumption_logs')
       .select('category, createdAt, points')
       .order('createdAt', { ascending: false });
-    
+
     if (error) throw error;
     return data;
+  },
+
+  async getCategories() {
+    const { data, error } = await supabase
+      .from('consumption_logs')
+      .select('category')
+      .not('category', 'is', null)
+      .neq('category', '')
+      .order('category', { ascending: true });
+
+    if (error) throw error;
+    const categories = [...new Set(data.map((d) => d.category))];
+    return categories;
   },
 
   // Rewards

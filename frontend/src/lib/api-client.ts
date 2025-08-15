@@ -125,6 +125,10 @@ export const localDbOperations = {
     return request('analytics/logs');
   },
 
+  async getCategories(): Promise<string[]> {
+    return request<string[]>('categories');
+  },
+
   async getRewards(): Promise<Reward[]> {
     return request('rewards');
   },

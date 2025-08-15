@@ -43,9 +43,23 @@ const LogConsumption = () => {
   const [recordingType, setRecordingType] = useState<'audio' | 'video'>('audio');
   const [captureMethod, setCaptureMethod] = useState<'manual' | 'ai'>('ai');
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
-
-  const categories = ["Jollof Rice", "Suya", "Pounded Yam", "Egusi", "Pepper Soup", "Chin Chin", "Plantain", "Akara", "Moi Moi", "Other"];
+  const [categories, setCategories] = useState<string[]>([]);
   const companionOptions = ["Alone", "With friends", "With family", "With colleagues", "With partner"];
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const list = await dbOperations.getCategories();
+        setCategories(list);
+        if (list.length > 0) {
+          setFormData((prev) => ({ ...prev, category: prev.category || list[0] }));
+        }
+      } catch (err) {
+        console.error('Error loading categories:', err);
+      }
+    }
+    loadCategories();
+  }, []);
 
   const renderMealFields = () => (
     <>
@@ -74,7 +88,7 @@ const LogConsumption = () => {
           onValueChange={(value) => setFormData({ ...formData, category: value })}
         >
           <SelectTrigger id="category" className="glass-effect">
-            <SelectValue placeholder="Select a category" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {categories.map((cat) => (
