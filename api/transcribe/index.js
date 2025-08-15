@@ -36,24 +36,55 @@ export default async function (context, req) {
 
     const audioBuffer = Buffer.from(audioBase64, "base64");
     if (audioBuffer.length < 256) {
-      context.res = { status: 400, headers: { "content-type": "application/json" }, body: { error: "audioBase64 too small" } };
+      context.res = {
+        status: 400,
+        headers: { "content-type": "application/json" },
+        body: { error: "audioBase64 too small" },
+      };
       return;
     }
 
-    const push = sdk.AudioInputStream.createPushStream();
-    push.write(audioBuffer); push.close();
+    const transcribeChunk = (buffer) => {
+      const pushStream = sdk.AudioInputStream.createPushStream();
+      pushStream.write(buffer);
+      pushStream.close();
+      const audioCfg = sdk.AudioConfig.fromStreamInput(pushStream);
+      const speechCfg = sdk.SpeechConfig.fromSubscription(key, region);
+      return new Promise((resolve, reject) => {
+        const rec = new sdk.SpeechRecognizer(speechCfg, audioCfg);
+        rec.recognizeOnceAsync(
+          (r) => {
+            rec.close();
+            resolve(r?.text || "");
+          },
+          (err) => {
+            rec.close();
+            reject(err);
+          },
+        );
+      });
+    };
 
-    const audioConfig = sdk.AudioConfig.fromStreamInput(push);
-    const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
-    // speechConfig.speechRecognitionLanguage = "en-US"; // optional
+    // Split large audio into chunks and transcribe in parallel for speed
+    const chunkSize = 32000 * 10; // ~10s for 16kHz mono PCM
+    const chunks = [];
+    for (let i = 0; i < audioBuffer.length; i += chunkSize) {
+      chunks.push(audioBuffer.slice(i, i + chunkSize));
+    }
 
-    const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
-    const result = await new Promise((resolve, reject) => {
-      recognizer.recognizeOnceAsync(resolve, reject);
-    });
-    recognizer.close();
+    let text = "";
+    if (chunks.length === 1) {
+      text = await transcribeChunk(audioBuffer);
+    } else {
+      const results = await Promise.all(chunks.map((c) => transcribeChunk(c)));
+      text = results.join(" ");
+    }
 
-    context.res = { status: 200, headers: { "content-type": "application/json" }, body: { text: result?.text || "" } };
+    context.res = {
+      status: 200,
+      headers: { "content-type": "application/json" },
+      body: { text },
+    };
   } catch (err) {
     context.log.error(err);
     context.res = { status: 500, headers: { "content-type": "application/json" }, body: { error: err.message } };
