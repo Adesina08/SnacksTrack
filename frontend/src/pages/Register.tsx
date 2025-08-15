@@ -99,6 +99,7 @@ const Register = () => {
       if (user) {
         const token = await authUtils.generateToken(user);
         authUtils.setAuthToken(token);
+        authUtils.cacheUser(user);
 
         // Mark first login so the dashboard can greet the user properly
         localStorage.setItem("firstLogin", "true");

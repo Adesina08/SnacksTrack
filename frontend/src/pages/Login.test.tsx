@@ -17,6 +17,7 @@ vi.mock('@/lib/auth', () => ({
     generateToken: vi.fn(),
     setAuthToken: vi.fn(),
     isAdminUser: vi.fn(),
+    cacheUser: vi.fn(),
   },
 }));
 
@@ -71,5 +72,6 @@ describe('Login page', () => {
     expect(authUtils.verifyPassword).toHaveBeenCalledWith('password', 'hashedpassword');
     expect(authUtils.generateToken).toHaveBeenCalledWith(mockUser);
     expect(authUtils.setAuthToken).toHaveBeenCalledWith('fake-token');
+    expect(authUtils.cacheUser).toHaveBeenCalledWith(mockUser);
   });
 });

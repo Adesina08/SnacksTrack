@@ -33,6 +33,7 @@ describe('createUser', () => {
         email: 'john.doe@example.com',
         phone: '1234567890',
         passwordHash: 'hashedpassword',
+        avatarUrl: 'https://example.com/a.png',
       },
     };
     const context = {
@@ -49,7 +50,7 @@ describe('createUser', () => {
     await createUser(context, req);
 
     expect(pool.query).toHaveBeenCalledWith(
-      'INSERT INTO users(id,email,first_name,last_name,phone,password_hash) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
+      'INSERT INTO users(id,email,first_name,last_name,phone,password_hash,avatar_url) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',
       [
         'some-uuid',
         'john.doe@example.com',
@@ -57,7 +58,8 @@ describe('createUser', () => {
         'Doe',
         '1234567890',
         'hashedpassword',
-      ]
+        'https://example.com/a.png',
+      ],
     );
 
     expect(context.res.status).toBe(200);

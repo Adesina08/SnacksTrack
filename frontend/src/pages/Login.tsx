@@ -49,6 +49,7 @@ const Login = () => {
         // Generate JWT token
         const token = await authUtils.generateToken(user);
         authUtils.setAuthToken(token);
+        authUtils.cacheUser(user);
 
         toast({
           title: "Welcome back!",

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { getLocalStorage } from "@/lib/local-storage";
 import { MediaCompressor } from "@/lib/media-compression";
 import { LocationService, LocationData } from "@/lib/location";
 import { convertToWav } from "@/lib/audio-utils";
+import { createSpeechRecognizer } from "@/lib/azure-speech";
 
 const initialFormState = {
   product: "",
@@ -45,6 +46,9 @@ const LogConsumption = () => {
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const companionOptions = ["Alone", "With friends", "With family", "With colleagues", "With partner"];
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const speechRef = useRef<ReturnType<typeof createSpeechRecognizer> | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     async function loadCategories() {
@@ -166,9 +170,22 @@ const LogConsumption = () => {
         audio: true,
         video: recordingType === 'video'
       };
-      
+
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
+      if (recordingType === 'video' && videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+
+      if (recordingType === 'audio' && captureMethod === 'ai') {
+        speechRef.current = createSpeechRecognizer((t) => setLiveTranscript(t));
+        try {
+          await speechRef.current.start();
+        } catch (err) {
+          console.error('Speech recognition error', err);
+        }
+      }
+
       const recorder = new MediaRecorder(stream);
       const chunks: BlobPart[] = [];
 
@@ -177,6 +194,9 @@ const LogConsumption = () => {
       };
 
       recorder.onstop = async () => {
+        if (speechRef.current) {
+          await speechRef.current.stop();
+        }
         const currentUser = await authUtils.getCurrentUser();
         const userId = currentUser?.id;
         const timestamp = new Date().toISOString().replace(/\[:.]/g, '-');
@@ -469,8 +489,16 @@ const LogConsumption = () => {
                           )}
                         </div>
                       </div>
+                      {isRecording && recordingType === 'video' && (
+                        <video
+                          ref={videoRef}
+                          className="w-full max-h-64 mx-auto mb-4 rounded-lg"
+                          muted
+                          playsInline
+                        />
+                      )}
                       <p className="text-muted-foreground mb-6">
-                        Record yourself talking about your Snacks experience. 
+                        Record yourself talking about your Snacks experience.
                         Mention what you're eating, where you are, who you're with, and how it tastes!
                       </p>
                       {!isRecording ? (
@@ -494,6 +522,11 @@ const LogConsumption = () => {
                         </Button>
                       )}
                     </div>
+                    {liveTranscript && (
+                      <div className="mt-4 p-3 bg-muted rounded text-left">
+                        <p className="text-sm text-muted-foreground">{liveTranscript}</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
