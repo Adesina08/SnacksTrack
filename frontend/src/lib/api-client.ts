@@ -106,6 +106,13 @@ export const localDbOperations = {
     });
   },
 
+  async updateUser(id: string, data: Partial<Pick<User, 'firstName' | 'lastName' | 'phone'>>): Promise<User> {
+    return request<User>(`users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  },
+
   async createConsumptionLog(logData: Omit<ConsumptionLog, 'id' | 'createdAt'>): Promise<ConsumptionLog> {
     return request<ConsumptionLog>('logs', {
       method: 'POST',
