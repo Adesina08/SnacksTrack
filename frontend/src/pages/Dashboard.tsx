@@ -55,8 +55,12 @@ const Dashboard = () => {
       if (currentUser) {
         setUser(currentUser);
 
-        // Load user's consumption logs
-        const logs = await localDbOperations.getUserConsumptionLogs();
+        // Fetch logs and leaderboard concurrently to speed up loading
+        const [logs, leaderboard] = await Promise.all([
+          localDbOperations.getUserConsumptionLogs(),
+          localDbOperations.getLeaderboard(),
+        ]);
+
         setRecentLogs(logs.slice(0, 3)); // Get latest 3 logs
 
         // Calculate dashboard stats from logs
@@ -67,11 +71,14 @@ const Dashboard = () => {
           daily[d] += 1;
         });
         setDailyProgress(daily);
+
+        const rankIndex = leaderboard.findIndex((u) => u.id === currentUser.id);
+
         setDashboardStats({
           totalPoints: currentUser.points || 0,
           thisWeekLogs: thisWeek.length,
           streak: calculateStreak(logs),
-          rank: await calculateUserRank(currentUser.id),
+          rank: rankIndex >= 0 ? rankIndex + 1 : leaderboard.length + 1,
         });
       }
     } catch (error) {
@@ -114,15 +121,6 @@ const Dashboard = () => {
     return streak;
   };
 
-  const calculateUserRank = async (userId: string) => {
-    try {
-      const leaderboard = await localDbOperations.getLeaderboard();
-      const index = leaderboard.findIndex((u) => u.id === userId);
-      return index >= 0 ? index + 1 : leaderboard.length + 1;
-    } catch (error) {
-      return 0;
-    }
-  };
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);

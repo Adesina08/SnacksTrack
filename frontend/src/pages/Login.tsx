@@ -41,8 +41,6 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      setIsLoading(true);
-
       const user = await localDbOperations.getUserByEmail(formData.email);
       if (
         user &&
