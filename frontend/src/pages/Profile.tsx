@@ -24,7 +24,7 @@ import {
   NotificationService,
   NotificationPreferences,
 } from "@/lib/notifications";
-import { dbOperations } from "@/lib/database";
+import { localDbOperations } from "@/lib/api-client";
 
 const Profile = () => {
   const [user, setUser] = useState<UserType | null>(null);
@@ -44,79 +44,70 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    loadUserData();
-    loadNotificationPreferences();
-    loadUserStats();
-  }, []);
+    const loadProfileData = async () => {
+      setIsLoading(true);
+      try {
+        // Load user data
+        const currentUser = await authUtils.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+          setFormData({
+            firstName: currentUser.firstName,
+            lastName: currentUser.lastName,
+            phone: currentUser.phone || "",
+          });
 
-  const loadUserData = async () => {
-    try {
-      const currentUser = await authUtils.getCurrentUser();
-      if (currentUser) {
-        setUser(currentUser);
-        setFormData({
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
-          phone: currentUser.phone || "",
+          // Load user stats
+          const logs = await localDbOperations.getUserConsumptionLogs();
+          const streak = calculateStreak(logs);
+
+          setUserStats([
+            {
+              label: "Total Points",
+              value: (currentUser.points || 0).toLocaleString(),
+              icon: Star,
+              color: "text-primary",
+            },
+            {
+              label: "Total Logs",
+              value: logs.length.toString(),
+              icon: TrendingUp,
+              color: "text-blue-600",
+            },
+            {
+              label: "Current Streak",
+              value: `${streak} days`,
+              icon: TrendingUp,
+              color: "text-blue-600",
+            },
+            { label: "Rank", value: "#-", icon: Star, color: "text-purple-600" },
+          ]);
+
+          const recentLogs = logs.slice(0, 4).map((log) => ({
+            action: `Logged ${log.product}`,
+            time: formatTimeAgo(log.createdAt),
+            points: `+${log.points}`,
+          }));
+          setRecentActivity(recentLogs);
+        }
+
+        // Load notification preferences
+        const prefs = NotificationService.loadPreferences();
+        setNotifications(prefs);
+      } catch (error) {
+        console.error("Error loading profile data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data.",
+          variant: "destructive",
         });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Error loading user data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  const loadNotificationPreferences = () => {
-    const prefs = NotificationService.loadPreferences();
-    setNotifications(prefs);
-  };
-
-  const loadUserStats = async () => {
-    try {
-      const currentUser = await authUtils.getCurrentUser();
-      if (currentUser) {
-        // Load user's consumption logs to calculate stats
-        const logs = await dbOperations.getUserConsumptionLogs();
-
-        // Calculate streak
-        const streak = calculateStreak(logs);
-
-        // Update stats
-        setUserStats([
-          {
-            label: "Total Points",
-            value: (currentUser.points || 0).toLocaleString(),
-            icon: Star,
-            color: "text-primary",
-          },
-          {
-            label: "Total Logs",
-            value: logs.length.toString(),
-            icon: TrendingUp,
-            color: "text-blue-600",
-          },
-          {
-            label: "Current Streak",
-            value: `${streak} days`,
-            icon: TrendingUp,
-            color: "text-blue-600",
-          },
-          { label: "Rank", value: "#-", icon: Star, color: "text-purple-600" },
-        ]);
-
-        // Set recent activity from logs
-        const recentLogs = logs.slice(0, 4).map((log) => ({
-          action: `Logged ${log.product}`,
-          time: formatTimeAgo(log.createdAt),
-          points: `+${log.points}`,
-        }));
-        setRecentActivity(recentLogs);
-      }
-    } catch (error) {
-      console.error("Error loading user stats:", error);
-    }
-  };
+    loadProfileData();
+  }, []);
 
   const calculateStreak = (logs: any[]) => {
     if (logs.length === 0) return 0;
@@ -164,16 +155,12 @@ const Profile = () => {
 
     setIsSaving(true);
     try {
-      // Update user profile in database
-      const updatedUser = {
-        ...user,
+      const updatedUser = await localDbOperations.updateUser(user.id, {
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
-      };
+      });
 
-      // In a real app, you'd have an updateUser function in dbOperations
-      // For now, we'll simulate the update
       setUser(updatedUser);
 
       toast({
