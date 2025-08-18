@@ -71,6 +71,7 @@ const LogConsumption = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState(initialFormState);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [aiAnalysis, setAiAnalysis] = useState<AzureAIAnalysis | null>(null);
@@ -94,6 +95,16 @@ const LogConsumption = () => {
       setFormData((prev) => ({ ...prev, brand: "" }));
     }
   }, [formData.category]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
 
   const renderMealFields = () => (
     <>
@@ -247,7 +258,7 @@ const LogConsumption = () => {
       }
 
       setLiveTranscript('');
-      if (recordingType === 'audio' && captureMethod === 'ai') {
+      if (captureMethod === 'ai') {
         speechRef.current = createSpeechRecognizer((t) => setLiveTranscript(t));
         try {
           await speechRef.current.start();
@@ -372,20 +383,19 @@ const LogConsumption = () => {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     try {
-      let transcription = '';
+      let transcription = liveTranscript;
 
-      // Transcribe audio/video
-      if (file.type.includes('audio') || file.type.includes('video')) {
+      if (!transcription.trim() && (file.type.includes('audio') || file.type.includes('video'))) {
         transcription = await transcribeAudio(file);
-        setAnalysisProgress(50);
-        if (!transcription.trim()) {
-          toast({
-            title: "Transcription failed",
-            description: "No speech detected in the recording.",
-            variant: "destructive",
-          });
-          return;
-        }
+      }
+      setAnalysisProgress(50);
+      if (!transcription.trim()) {
+        toast({
+          title: "Transcription failed",
+          description: "No speech detected in the recording.",
+          variant: "destructive",
+        });
+        return;
       }
 
       // Analyze consumption data
@@ -690,6 +700,16 @@ const LogConsumption = () => {
                         Remove
                       </Button>
                     </div>
+
+                    {previewUrl && (
+                      <div className="mt-4">
+                        {recordingType === 'video' ? (
+                          <video src={previewUrl} controls className="w-full rounded-lg" />
+                        ) : (
+                          <audio src={previewUrl} controls className="w-full" />
+                        )}
+                      </div>
+                    )}
 
                     {isAnalyzing && (
                       <div className="text-center py-6 space-y-2">
