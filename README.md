@@ -56,6 +56,8 @@ AZURE_AUDIO_CONTAINER=audio-logs
 AZURE_MEDIA_CONTAINER=media-logs
 AZURE_SPEECH_KEY=<your speech key>
 AZURE_SPEECH_REGION=<your speech region>
+# These variables are also exposed to the frontend. Using
+# VITE_AZURE_SPEECH_KEY and VITE_AZURE_SPEECH_REGION works as well.
 AZURE_LANGUAGE_KEY=<your language key>
 AZURE_LANGUAGE_ENDPOINT=<your language endpoint>
 ```

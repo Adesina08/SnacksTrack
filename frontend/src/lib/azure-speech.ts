@@ -1,8 +1,12 @@
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
 
 export function createSpeechRecognizer(onText: (text: string) => void) {
-  const key = import.meta.env.VITE_AZURE_SPEECH_KEY;
-  const region = import.meta.env.VITE_AZURE_SPEECH_REGION;
+  const key =
+    import.meta.env.VITE_AZURE_SPEECH_KEY ||
+    import.meta.env.AZURE_SPEECH_KEY;
+  const region =
+    import.meta.env.VITE_AZURE_SPEECH_REGION ||
+    import.meta.env.AZURE_SPEECH_REGION;
   if (!key || !region) throw new Error("Missing Azure speech credentials");
   const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
   speechConfig.speechRecognitionLanguage = "en-US";

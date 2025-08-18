@@ -9,6 +9,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'), // allows you to use '@/components/...' etc.
     },
   },
+  envPrefix: ['VITE_', 'AZURE_'],
   build: {
     outDir: 'dist',
   },
