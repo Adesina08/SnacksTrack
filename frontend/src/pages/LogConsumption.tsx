@@ -235,11 +235,22 @@ const LogConsumption = () => {
       return;
     }
 
-    const isSecure = window.isSecureContext || location.hostname === 'localhost';
+    // Browsers only allow camera/mic access from secure contexts (HTTPS or localhost).
+    // Some development setups use other loopback or private addresses, so we
+    // explicitly allow typical local network hostnames.
+    const hostname = window.location.hostname;
+    const isLocalhost =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      /^192\.168\./.test(hostname) ||
+      /^10\./.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+    const isSecure = window.isSecureContext || isLocalhost;
     if (!isSecure) {
       toast({
         title: 'Secure context required',
-        description: 'Camera and microphone access requires HTTPS or localhost.',
+        description: 'Camera and microphone access requires HTTPS or a local host.',
         variant: 'destructive',
       });
       return;
