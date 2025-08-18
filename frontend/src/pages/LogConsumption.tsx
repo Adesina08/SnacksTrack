@@ -270,11 +270,17 @@ const LogConsumption = () => {
 
       setLiveTranscript('');
       if (captureMethod === 'ai') {
-        speechRef.current = createSpeechRecognizer((t) => setLiveTranscript(t));
         try {
+          speechRef.current = createSpeechRecognizer((t) => setLiveTranscript(t));
           await speechRef.current.start();
         } catch (err) {
           console.error('Speech recognition error', err);
+          toast({
+            title: 'Speech recognition unavailable',
+            description:
+              'Azure speech credentials are missing or invalid. Recording will continue without live transcription.',
+            variant: 'destructive',
+          });
         }
       }
 
