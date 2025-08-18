@@ -15,11 +15,19 @@ export async function transcribeAudio(blob: Blob): Promise<string> {
   const audioBase64 = await blobToBase64(blob);
   if (!audioBase64) throw new Error("Empty audio");
 
-  const res = await fetch(`${baseUrl}/api/transcribe`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ audioBase64 })
-  });
+  const start = performance.now();
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}/api/transcribe`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ audioBase64 })
+    });
+  } catch {
+    throw new Error("Transcription service unreachable");
+  }
+  const duration = performance.now() - start;
+  console.info(`Transcription request took ${Math.round(duration)}ms`);
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || "Transcription failed");
