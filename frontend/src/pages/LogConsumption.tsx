@@ -19,7 +19,7 @@ import { getLocalStorage } from "@/lib/local-storage";
 import { getAzureStorage } from "@/lib/azure-storage";
 import { MediaCompressor } from "@/lib/media-compression";
 import { LocationService, LocationData } from "@/lib/location";
-import { WavAudioHelper } from "@/lib/audio-utils";
+import { Mp3AudioHelper } from "@/lib/audio-utils";
 import { extractAudioFromVideo } from "@/lib/video-utils";
 import { createSpeechRecognizer } from "@/lib/azure-speech";
 
@@ -314,14 +314,13 @@ const LogConsumption = () => {
           try {
             toast({ title: "Extracting audio from video..." });
             const audioBlob = await extractAudioFromVideo(blob);
-            const wavBlob = await WavAudioHelper.convertToWav(audioBlob);
             fileToAnalyze = new File(
-              [wavBlob],
-              `${userId || "anonymous"}_${timestamp}.wav`,
-              { type: "audio/wav" }
+              [audioBlob],
+              `${userId || "anonymous"}_${timestamp}.mp3`,
+              { type: "audio/mpeg" }
             );
           } catch (error) {
-            console.error("Failed to extract or convert audio from video:", error);
+            console.error("Failed to extract audio from video:", error);
             toast({
               title: "Audio Extraction Failed",
               description: "Could not process the audio from the video. Please try again.",
@@ -333,16 +332,16 @@ const LogConsumption = () => {
         } else {
           // For audio-only recordings
           try {
-            const wavBlob = await WavAudioHelper.convertToWav(blob);
+            const mp3Blob = await Mp3AudioHelper.convertToMp3(blob);
             const audioFile = new File(
-              [wavBlob],
-              `${userId || "anonymous"}_${timestamp}.wav`,
-              { type: "audio/wav" }
+              [mp3Blob],
+              `${userId || "anonymous"}_${timestamp}.mp3`,
+              { type: "audio/mpeg" }
             );
             setSelectedFile(audioFile); // This is for upload
             fileToAnalyze = audioFile;
           } catch (error) {
-            console.error("Failed to convert audio to WAV:", error);
+            console.error("Failed to convert audio to MP3:", error);
             toast({
               title: "Audio Processing Failed",
               description: "Could not process the recorded audio. Please try again.",
@@ -431,7 +430,7 @@ const LogConsumption = () => {
         spend: analysis.amountSpent
           ? `${analysis.amountSpent.currency === 'NGN' ? '₦' : analysis.amountSpent.currency} ${analysis.amountSpent.amount}`
           : '',
-        notes: analysis.said || ''
+        notes: transcription
       });
 
       toast({
@@ -678,11 +677,6 @@ const LogConsumption = () => {
                         </Button>
                       )}
                     </div>
-                    {liveTranscript && (
-                      <div className="mt-4 p-3 bg-muted rounded text-left">
-                        <p className="text-sm text-muted-foreground">{liveTranscript}</p>
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -721,11 +715,6 @@ const LogConsumption = () => {
                         ) : (
                           <audio src={previewUrl} controls className="w-full" />
                         )}
-                      </div>
-                    )}
-                    {liveTranscript && (
-                      <div className="mt-4 p-3 bg-muted rounded text-left">
-                        <p className="text-sm text-muted-foreground">{liveTranscript}</p>
                       </div>
                     )}
 

@@ -22,7 +22,7 @@ async function getFFmpeg() {
 export async function extractAudioFromVideo(videoBlob: Blob): Promise<Blob> {
   const ffmpegInstance = await getFFmpeg();
   const inputFileName = "input.webm";
-  const outputFileName = "output.opus";
+  const outputFileName = "output.mp3";
 
   await ffmpegInstance.writeFile(inputFileName, await fetchFile(videoBlob));
 
@@ -31,10 +31,16 @@ export async function extractAudioFromVideo(videoBlob: Blob): Promise<Blob> {
     inputFileName,
     "-vn", // No video
     "-acodec",
-    "copy", // Copy audio codec without re-encoding
+    "libmp3lame",
+    "-ar",
+    "16000",
+    "-ac",
+    "1",
+    "-b:a",
+    "128k",
     outputFileName,
   ]);
 
   const data = await ffmpegInstance.readFile(outputFileName);
-  return new Blob([data], { type: "audio/opus" });
+  return new Blob([data], { type: "audio/mpeg" });
 }
