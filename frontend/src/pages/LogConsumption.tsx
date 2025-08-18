@@ -16,6 +16,7 @@ import { authUtils } from "@/lib/auth";
 import { azureAI, AzureAIAnalysis } from "@/lib/azure-ai";
 import { transcribeAudio } from "@/lib/transcribe";
 import { getLocalStorage } from "@/lib/local-storage";
+import { getAzureStorage } from "@/lib/azure-storage";
 import { MediaCompressor } from "@/lib/media-compression";
 import { LocationService, LocationData } from "@/lib/location";
 import { convertToWav } from "@/lib/audio-utils";
@@ -214,10 +215,10 @@ const LogConsumption = () => {
 
   const startRecording = async () => {
     try {
-      const constraints = {
-        audio: true,
-        video: recordingType === 'video'
-      };
+      const constraints: MediaStreamConstraints =
+        recordingType === 'video'
+          ? { audio: true, video: { facingMode: 'environment' } }
+          : { audio: true, video: false };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (recordingType === 'video' && videoRef.current) {
@@ -284,9 +285,10 @@ const LogConsumption = () => {
         description: `Recording ${recordingType}... Talk about your Nigerian meal experience!`,
       });
     } catch (error) {
+      console.error('Recording start error', error);
       toast({
         title: "Recording failed",
-        description: "Unable to access camera/microphone.",
+        description: "Unable to access microphone or camera. Please grant permission.",
         variant: "destructive",
       });
     }
@@ -401,7 +403,7 @@ const LogConsumption = () => {
 
       let mediaUrl = '';
 
-      // Compress and upload locally if a file was selected
+      // Compress and upload if a file was selected
       if (selectedFile) {
         let fileToUpload = selectedFile;
 
@@ -415,10 +417,19 @@ const LogConsumption = () => {
           }
         }
 
-        const localStorageService = getLocalStorage();
-        const uploadResult = await localStorageService.uploadFile(fileToUpload);
-        if (uploadResult.success) {
-          mediaUrl = uploadResult.url;
+        // Prefer direct Azure upload if configured
+        const storage = getAzureStorage();
+        if (storage) {
+          const upload = await storage.uploadFile(fileToUpload);
+          if (upload.success) {
+            mediaUrl = upload.url;
+          }
+        } else {
+          const localStorageService = getLocalStorage();
+          const uploadResult = await localStorageService.uploadFile(fileToUpload);
+          if (uploadResult.success) {
+            mediaUrl = uploadResult.url;
+          }
         }
       }
 
