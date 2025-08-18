@@ -14,7 +14,7 @@ const Index = () => {
             <div className="w-8 h-8 nigeria-accent rounded-full"></div>
             <h1 className="text-2xl font-bold text-gradient">SnacksTrack</h1>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-3">
             <Link to="/login">
               <Button variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-50 glass-effect">
                 Login
