@@ -119,15 +119,7 @@ const LogConsumption = () => {
           className="glass-effect"
         />
       </div>
-      <div>
-        <Label htmlFor="product">Product Name</Label>
-        <Input
-          id="product"
-          value={formData.product}
-          onChange={(e) => setFormData({ ...formData, product: e.target.value })}
-          className="glass-effect"
-        />
-      </div>
+      {/* Product name removed as it's no longer captured manually */}
       <div>
         <Label htmlFor="category">Category</Label>
         <Select
@@ -208,11 +200,12 @@ const LogConsumption = () => {
   }, []);
 
   useEffect(() => {
-    if (captureMethod === 'manual') {
-      setSelectedFile(null);
-      setAiAnalysis(null);
-      setFormData(initialFormState);
-    }
+    // Reset shared state whenever capture method changes to avoid leftover media or data
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setAiAnalysis(null);
+    setLiveTranscript('');
+    setFormData(initialFormState);
   }, [captureMethod]);
 
   const getCurrentLocation = async () => {
@@ -405,6 +398,8 @@ const LogConsumption = () => {
       if (!transcription.trim() && (file.type.includes('audio') || file.type.includes('video'))) {
         transcription = await transcribeAudio(file);
       }
+      // Ensure the final transcription is displayed after recording completes
+      setLiveTranscript(transcription);
       setAnalysisProgress(50);
       if (!transcription.trim()) {
         toast({
@@ -535,7 +530,7 @@ const LogConsumption = () => {
 
       // Create consumption log
       const logData = {
-        product: formData.product,
+        product: captureMethod === 'ai' ? formData.product : undefined,
         brand: formData.brand,
         category: formData.category,
         spend: formData.spend ? parseFloat(formData.spend.replace('₦', '')) : undefined,
@@ -711,6 +706,7 @@ const LogConsumption = () => {
                         onClick={() => {
                           setSelectedFile(null);
                           setAiAnalysis(null);
+                          setLiveTranscript('');
                         }}
                         className="text-green-600 hover:text-green-700"
                       >
@@ -725,6 +721,11 @@ const LogConsumption = () => {
                         ) : (
                           <audio src={previewUrl} controls className="w-full" />
                         )}
+                      </div>
+                    )}
+                    {liveTranscript && (
+                      <div className="mt-4 p-3 bg-muted rounded text-left">
+                        <p className="text-sm text-muted-foreground">{liveTranscript}</p>
                       </div>
                     )}
 
