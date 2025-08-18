@@ -28,6 +28,7 @@ const Rewards = () => {
   const [leaderboard, setLeaderboard] = useState<
     Array<{ id: string; name: string; points: number }>
   >([]);
+  const [hasRewardNotification, setHasRewardNotification] = useState(false);
 
   useEffect(() => {
     loadRewardsData();
@@ -87,7 +88,7 @@ const Rewards = () => {
 
         toast({
           title: "Reward Redeemed! 🎉",
-          description: `You have successfully redeemed ${reward}`,
+          description: `You have successfully redeemed ${reward}. Your reward will be communicated very soon.`,
         });
       } catch (error) {
         console.error("Error redeeming reward:", error);
@@ -205,6 +206,21 @@ const Rewards = () => {
 
   // Use database rewards if available, otherwise fallback to static
   const displayRewards = rewards.length > 0 ? rewards : staticRewardItems;
+
+  useEffect(() => {
+    if (!hasRewardNotification) {
+      const eligible = displayRewards.some(
+        (r) => userPoints >= (r.pointsRequired || 0),
+      );
+      if (eligible) {
+        toast({
+          title: "Reward Available! 🎁",
+          description: "Your reward will be communicated very soon.",
+        });
+        setHasRewardNotification(true);
+      }
+    }
+  }, [userPoints, displayRewards, hasRewardNotification]);
 
   const calculateAchievements = (
     logs: ConsumptionLog[],
