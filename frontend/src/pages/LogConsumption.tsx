@@ -468,8 +468,8 @@ const LogConsumption = () => {
 
       // Validate required fields per capture method
       if (captureMethod === 'manual') {
-        const { product, brand, category, spend, companions } = formData;
-        if (!product || !brand || !category || !spend || !companions) {
+        const { brand, category, spend, companions } = formData;
+        if (!brand || !category || !spend || !companions) {
           toast({
             title: "Missing information",
             description: "Please complete all fields before submitting.",
@@ -529,7 +529,7 @@ const LogConsumption = () => {
 
       // Create consumption log
       const logData = {
-        product: captureMethod === 'ai' ? formData.product : undefined,
+        product: captureMethod === 'ai' ? formData.product : formData.brand,
         brand: formData.brand,
         category: formData.category,
         spend: formData.spend ? parseFloat(formData.spend.replace('₦', '')) : undefined,
