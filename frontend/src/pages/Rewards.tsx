@@ -14,6 +14,7 @@ import {
   Coffee,
   ShoppingBag,
 } from "lucide-react";
+import { fallbackRewards } from "@/data/rewards";
 import { toast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import { authUtils } from "@/lib/auth";
@@ -53,8 +54,8 @@ const Rewards = () => {
       setLeaderboard(board);
     } catch (error) {
       console.error("Error loading rewards data:", error);
-      // Fallback to static rewards if API fails
-      setRewards(staticRewardItems);
+      // Fallback to predefined rewards if API fails
+      setRewards(fallbackRewards);
     } finally {
       setIsLoading(false);
     }
@@ -108,104 +109,8 @@ const Rewards = () => {
     }
   };
 
-  // Static fallback rewards if API fails
-  const staticRewardItems: (Reward & {
-    cost?: number;
-    icon?: any;
-    popular?: boolean;
-  })[] = [
-    {
-      id: "1",
-      name: "₦500 MTN Airtime",
-      description: "Mobile recharge for MTN network",
-      pointsRequired: 500,
-      cost: 500,
-      icon: Smartphone,
-      category: "airtime",
-      popular: false,
-      isActive: true,
-    },
-    {
-      id: "2",
-      name: "₦1000 Airtel Data",
-      description: "1GB data bundle for Airtel",
-      pointsRequired: 800,
-      cost: 800,
-      icon: Smartphone,
-      category: "data",
-      popular: true,
-      isActive: true,
-    },
-    {
-      id: "3",
-      name: "₦2000 9mobile Airtime",
-      description: "Mobile recharge for 9mobile network",
-      pointsRequired: 1000,
-      cost: 1000,
-      icon: Smartphone,
-      category: "airtime",
-      popular: false,
-      isActive: true,
-    },
-    {
-      id: "4",
-      name: "Jumia Voucher",
-      description: "₦5000 Jumia shopping voucher",
-      pointsRequired: 2000,
-      cost: 2000,
-      icon: ShoppingBag,
-      category: "voucher",
-      popular: true,
-      isActive: true,
-    },
-    {
-      id: "5",
-      name: "Dominos Pizza",
-      description: "Free medium pizza from Dominos Nigeria",
-      pointsRequired: 1500,
-      cost: 1500,
-      icon: Gift,
-      category: "food",
-      popular: false,
-      isActive: true,
-    },
-    {
-      id: "6",
-      name: "Netflix Naija",
-      description: "1 month Netflix Nigeria subscription",
-      pointsRequired: 1200,
-      cost: 1200,
-      icon: Zap,
-      category: "entertainment",
-      popular: true,
-      isActive: true,
-    },
-    {
-      id: "7",
-      name: "Konga Voucher",
-      description: "₦3000 Konga shopping voucher",
-      pointsRequired: 1300,
-      cost: 1300,
-      icon: ShoppingBag,
-      category: "voucher",
-      popular: false,
-      isActive: true,
-    },
-    {
-      id: "8",
-      name: "Glo Data Bundle",
-      description: "2GB data bundle for Glo network",
-      pointsRequired: 900,
-      cost: 900,
-      icon: Smartphone,
-      category: "data",
-      popular: true,
-      isActive: true,
-    },
-  ];
-
-  // Use database rewards if available, otherwise fallback to static
-  const displayRewards = rewards.length > 0 ? rewards : staticRewardItems;
+  // Use database rewards if available, otherwise fallback to static list
+  const displayRewards = rewards.length > 0 ? rewards : fallbackRewards;
 
   useEffect(() => {
     if (!hasRewardNotification) {
@@ -369,9 +274,9 @@ const Rewards = () => {
                 {displayRewards.map((reward) => {
                   // Handle both database rewards and static rewards
                   const rewardCost =
-                    reward.pointsRequired || (reward as any).cost || 0;
+                    reward.pointsRequired || (reward as any).price || 0;
                   const rewardIcon = (reward as any).icon || Smartphone;
-                  const isPopular = (reward as any).popular || false;
+                  const isPopular = (reward as any).isFeatured || false;
 
                   return (
                     <Card
