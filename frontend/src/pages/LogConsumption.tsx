@@ -21,10 +21,44 @@ import { LocationService, LocationData } from "@/lib/location";
 import { convertToWav } from "@/lib/audio-utils";
 import { createSpeechRecognizer } from "@/lib/azure-speech";
 
+const CATEGORY_OPTIONS = ["Noodles", "Snacks"];
+
+const BRAND_OPTIONS: Record<string, string[]> = {
+  Noodles: [
+    "Indomie",
+    "Golden Penny",
+    "Dangote",
+    "Honeywell",
+    "Supreme",
+    "Tummy Tummy",
+    "Mimee",
+    "Chikki",
+    "Minimie",
+    "Good Mama",
+  ],
+  Snacks: [
+    "Gala",
+    "Bigi",
+    "Beloxxi",
+    "Nasco",
+    "McVitie's",
+    "Rite Foods",
+    "Minimie",
+    "Kellogg's",
+    "Cadbury",
+    "Nestle",
+    "Oreo",
+    "Pringles",
+    "Lays",
+    "Chi",
+    "PepsiCo",
+  ],
+};
+
 const initialFormState = {
   product: "",
   brand: "",
-  category: "",
+  category: CATEGORY_OPTIONS[0],
   spend: "",
   companions: "",
   location: "",
@@ -44,44 +78,40 @@ const LogConsumption = () => {
   const [recordingType, setRecordingType] = useState<'audio' | 'video'>('audio');
   const [captureMethod, setCaptureMethod] = useState<'manual' | 'ai'>('ai');
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories] = useState<string[]>(CATEGORY_OPTIONS);
+  const [brands, setBrands] = useState<string[]>(BRAND_OPTIONS[CATEGORY_OPTIONS[0]]);
   const companionOptions = ["Alone", "With friends", "With family", "With colleagues", "With partner"];
   const [liveTranscript, setLiveTranscript] = useState("");
   const speechRef = useRef<ReturnType<typeof createSpeechRecognizer> | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    async function loadCategories() {
-      try {
-        const list = await dbOperations.getCategories();
-        setCategories(list);
-        if (list.length > 0) {
-          setFormData((prev) => ({ ...prev, category: prev.category || list[0] }));
-        }
-      } catch (err) {
-        console.error('Error loading categories:', err);
-      }
+    const availableBrands = BRAND_OPTIONS[formData.category] || [];
+    setBrands(availableBrands);
+    if (!availableBrands.includes(formData.brand)) {
+      setFormData((prev) => ({ ...prev, brand: "" }));
     }
-    loadCategories();
-  }, []);
+  }, [formData.category]);
 
   const renderMealFields = () => (
     <>
+      <div>
+        <Label htmlFor="photo">Photo</Label>
+        <Input
+          id="photo"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+          className="glass-effect"
+        />
+      </div>
       <div>
         <Label htmlFor="product">Product Name</Label>
         <Input
           id="product"
           value={formData.product}
           onChange={(e) => setFormData({ ...formData, product: e.target.value })}
-          className="glass-effect"
-        />
-      </div>
-      <div>
-        <Label htmlFor="brand">Brand</Label>
-        <Input
-          id="brand"
-          value={formData.brand}
-          onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
           className="glass-effect"
         />
       </div>
@@ -98,6 +128,24 @@ const LogConsumption = () => {
             {categories.map((cat) => (
               <SelectItem key={cat} value={cat}>
                 {cat}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="brand">Brand</Label>
+        <Select
+          value={formData.brand}
+          onValueChange={(value) => setFormData({ ...formData, brand: value })}
+        >
+          <SelectTrigger id="brand" className="glass-effect">
+            <SelectValue placeholder="Select brand" />
+          </SelectTrigger>
+          <SelectContent>
+            {brands.map((b) => (
+              <SelectItem key={b} value={b}>
+                {b}
               </SelectItem>
             ))}
           </SelectContent>
@@ -177,6 +225,7 @@ const LogConsumption = () => {
         await videoRef.current.play().catch(() => {});
       }
 
+      setLiveTranscript('');
       if (recordingType === 'audio' && captureMethod === 'ai') {
         speechRef.current = createSpeechRecognizer((t) => setLiveTranscript(t));
         try {
@@ -186,7 +235,10 @@ const LogConsumption = () => {
         }
       }
 
-      const recorder = new MediaRecorder(stream);
+      const options = {
+        mimeType: recordingType === 'video' ? 'video/webm;codecs=vp9,opus' : 'audio/webm;codecs=opus'
+      };
+      const recorder = new MediaRecorder(stream, options);
       const chunks: BlobPart[] = [];
 
       recorder.ondataavailable = (event) => {
@@ -349,26 +401,25 @@ const LogConsumption = () => {
 
       let mediaUrl = '';
 
-      // Compress and upload locally if a file was recorded
-      if (captureMethod === 'ai' && selectedFile) {
+      // Compress and upload locally if a file was selected
+      if (selectedFile) {
         let fileToUpload = selectedFile;
-          
-          // Compress media before upload
-          if (selectedFile.type.startsWith('image/')) {
-            if (MediaCompressor.needsCompression(selectedFile, 2)) {
-              fileToUpload = await MediaCompressor.compressImage(selectedFile, 0.7, 800);
-            }
-          } else if (selectedFile.type.startsWith('video/')) {
-            if (MediaCompressor.needsCompression(selectedFile, 10)) {
-              fileToUpload = await MediaCompressor.compressVideo(selectedFile);
-            }
+
+        if (selectedFile.type.startsWith('image/')) {
+          if (MediaCompressor.needsCompression(selectedFile, 2)) {
+            fileToUpload = await MediaCompressor.compressImage(selectedFile, 0.7, 800);
           }
-          
-          const localStorageService = getLocalStorage();
-          const uploadResult = await localStorageService.uploadFile(fileToUpload);
-          if (uploadResult.success) {
-            mediaUrl = uploadResult.url;
+        } else if (selectedFile.type.startsWith('video/')) {
+          if (MediaCompressor.needsCompression(selectedFile, 10)) {
+            fileToUpload = await MediaCompressor.compressVideo(selectedFile);
           }
+        }
+
+        const localStorageService = getLocalStorage();
+        const uploadResult = await localStorageService.uploadFile(fileToUpload);
+        if (uploadResult.success) {
+          mediaUrl = uploadResult.url;
+        }
       }
 
       // Calculate points based on submission
@@ -388,7 +439,13 @@ const LogConsumption = () => {
         location: currentLocation ? LocationService.formatLocation(currentLocation) : formData.location,
         notes: formData.notes,
         mediaUrl,
-        mediaType: captureMethod === 'ai' && selectedFile ? (selectedFile.type.startsWith('video/') ? 'video' as const : 'audio' as const) : undefined,
+        mediaType: selectedFile
+          ? selectedFile.type.startsWith('video/')
+            ? 'video'
+            : selectedFile.type.startsWith('audio/')
+              ? 'audio'
+              : 'photo'
+          : undefined,
         captureMethod,
         aiAnalysis: captureMethod === 'ai' ? aiAnalysis : undefined,
         points
