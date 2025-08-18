@@ -19,7 +19,8 @@ import { getLocalStorage } from "@/lib/local-storage";
 import { getAzureStorage } from "@/lib/azure-storage";
 import { MediaCompressor } from "@/lib/media-compression";
 import { LocationService, LocationData } from "@/lib/location";
-import { convertToWav } from "@/lib/audio-utils";
+import { WavAudioHelper } from "@/lib/audio-utils";
+import { extractAudioFromVideo } from "@/lib/video-utils";
 import { createSpeechRecognizer } from "@/lib/azure-speech";
 
 const CATEGORY_OPTIONS = ["Noodles", "Snacks"];
@@ -252,28 +253,68 @@ const LogConsumption = () => {
         }
         const currentUser = await authUtils.getCurrentUser();
         const userId = currentUser?.id;
-        const timestamp = new Date().toISOString().replace(/\[:.]/g, '-');
-        const isVideo = recordingType === 'video';
-        const mimeType = isVideo ? 'video/webm' : 'audio/webm';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const isVideo = recordingType === "video";
+        const mimeType = isVideo ? "video/webm" : "audio/webm";
         const blob = new Blob(chunks, { type: mimeType });
 
-        let file: File;
+        // Stop all tracks from the stream as early as possible
+        stream.getTracks().forEach((track) => track.stop());
+
+        let fileToAnalyze: File;
+
         if (isVideo) {
-          file = new File([blob], `${userId || 'anonymous'}_${timestamp}.webm`, { type: mimeType });
+          const videoFile = new File(
+            [blob],
+            `${userId || "anonymous"}_${timestamp}.webm`,
+            { type: mimeType }
+          );
+          setSelectedFile(videoFile); // This is for upload
+
+          try {
+            toast({ title: "Extracting audio from video..." });
+            const audioBlob = await extractAudioFromVideo(blob);
+            const wavBlob = await WavAudioHelper.convertToWav(audioBlob);
+            fileToAnalyze = new File(
+              [wavBlob],
+              `${userId || "anonymous"}_${timestamp}.wav`,
+              { type: "audio/wav" }
+            );
+          } catch (error) {
+            console.error("Failed to extract or convert audio from video:", error);
+            toast({
+              title: "Audio Extraction Failed",
+              description: "Could not process the audio from the video. Please try again.",
+              variant: "destructive",
+            });
+            setIsRecording(false);
+            return;
+          }
         } else {
-          const wavBlob = await convertToWav(blob);
-          file = new File([wavBlob], `${userId || 'anonymous'}_${timestamp}.wav`, {
-            type: 'audio/wav'
-          });
+          // For audio-only recordings
+          try {
+            const wavBlob = await WavAudioHelper.convertToWav(blob);
+            const audioFile = new File(
+              [wavBlob],
+              `${userId || "anonymous"}_${timestamp}.wav`,
+              { type: "audio/wav" }
+            );
+            setSelectedFile(audioFile); // This is for upload
+            fileToAnalyze = audioFile;
+          } catch (error) {
+            console.error("Failed to convert audio to WAV:", error);
+            toast({
+              title: "Audio Processing Failed",
+              description: "Could not process the recorded audio. Please try again.",
+              variant: "destructive",
+            });
+            setIsRecording(false);
+            return;
+          }
         }
 
-        setSelectedFile(file);
-
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
-
-        // Analyze with Azure AI
-        await analyzeWithAzureAI(file);
+        // Analyze with Azure AI using the (extracted) audio file
+        await analyzeWithAzureAI(fileToAnalyze);
       };
 
       setMediaRecorder(recorder);
