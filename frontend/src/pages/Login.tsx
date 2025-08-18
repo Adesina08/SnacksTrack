@@ -42,28 +42,36 @@ const Login = () => {
 
     try {
       const user = await localDbOperations.getUserByEmail(formData.email);
-      if (
-        user &&
-        (await authUtils.verifyPassword(formData.password, user.passwordHash))
-      ) {
-        // Generate JWT token
-        const token = await authUtils.generateToken(user);
-        authUtils.setAuthToken(token);
-        authUtils.cacheUser(user);
+      if (user) {
+        // Run password verification and token generation concurrently
+        const [isValid, token] = await Promise.all([
+          authUtils.verifyPassword(formData.password, user.passwordHash),
+          authUtils.generateToken(user),
+        ]);
+        if (isValid) {
+          authUtils.setAuthToken(token);
+          authUtils.cacheUser(user);
 
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in to SnackTrack.",
-        });
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully logged in to SnackTrack.",
+          });
 
-        const path = authUtils.isAdminUser(user) ? "/admin" : "/dashboard";
+          const path = authUtils.isAdminUser(user) ? "/admin" : "/dashboard";
 
-        const hasPrefs = localStorage.getItem("notification_preferences");
-        if (!hasPrefs) {
-          setNextPath(path);
-          setShowNotificationPrompt(true);
+          const hasPrefs = localStorage.getItem("notification_preferences");
+          if (!hasPrefs) {
+            setNextPath(path);
+            setShowNotificationPrompt(true);
+          } else {
+            navigate(path);
+          }
         } else {
-          navigate(path);
+          toast({
+            title: "Invalid credentials",
+            description: "Email or password is incorrect.",
+            variant: "destructive",
+          });
         }
       } else {
         toast({

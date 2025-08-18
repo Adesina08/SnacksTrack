@@ -215,6 +215,25 @@ const LogConsumption = () => {
   };
 
   const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast({
+        title: 'Recording failed',
+        description: 'Media devices are not supported in this browser.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const isSecure = window.isSecureContext || location.hostname === 'localhost';
+    if (!isSecure) {
+      toast({
+        title: 'Secure context required',
+        description: 'Camera and microphone access requires HTTPS or localhost.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const constraints: MediaStreamConstraints =
         recordingType === 'video'
@@ -325,12 +344,18 @@ const LogConsumption = () => {
         title: "Recording started",
         description: `Recording ${recordingType}... Talk about your Nigerian meal experience!`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Recording start error', error);
+      let description = 'Unable to access microphone or camera. Please grant permission.';
+      if (error?.name === 'NotAllowedError') {
+        description = 'Permission denied. Please allow access to microphone or camera.';
+      } else if (error?.name === 'NotFoundError') {
+        description = 'Required media device not found.';
+      }
       toast({
-        title: "Recording failed",
-        description: "Unable to access microphone or camera. Please grant permission.",
-        variant: "destructive",
+        title: 'Recording failed',
+        description,
+        variant: 'destructive',
       });
     }
   };
