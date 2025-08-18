@@ -85,7 +85,7 @@ const LogConsumption = () => {
   const [brands, setBrands] = useState<string[]>(BRAND_OPTIONS[CATEGORY_OPTIONS[0]]);
   const companionOptions = ["Alone", "With friends", "With family", "With colleagues", "With partner"];
   const [liveTranscript, setLiveTranscript] = useState("");
-  const speechRef = useRef<ReturnType<typeof createSpeechRecognizer> | null>(null);
+  const speechRef = useRef<ReturnType<typeof createSpeechRecognizer>>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -263,11 +263,21 @@ const LogConsumption = () => {
 
       setLiveTranscript('');
       if (captureMethod === 'ai') {
-        try {
-          speechRef.current = createSpeechRecognizer((t) => setLiveTranscript(t));
-          await speechRef.current.start();
-        } catch (err) {
-          console.error('Speech recognition error', err);
+        speechRef.current = createSpeechRecognizer((t) => setLiveTranscript(t));
+        if (speechRef.current) {
+          try {
+            await speechRef.current.start();
+          } catch (err) {
+            console.error('Speech recognition error', err);
+            speechRef.current = null;
+            toast({
+              title: 'Speech recognition unavailable',
+              description:
+                'Azure speech service could not be started. Recording will continue without live transcription.',
+              variant: 'destructive',
+            });
+          }
+        } else {
           toast({
             title: 'Speech recognition unavailable',
             description:

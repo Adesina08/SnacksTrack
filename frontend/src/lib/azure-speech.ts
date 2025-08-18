@@ -1,13 +1,18 @@
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
 
-export function createSpeechRecognizer(onText: (text: string) => void) {
-  const key =
-    import.meta.env.VITE_AZURE_SPEECH_KEY ||
-    import.meta.env.AZURE_SPEECH_KEY;
-  const region =
-    import.meta.env.VITE_AZURE_SPEECH_REGION ||
-    import.meta.env.AZURE_SPEECH_REGION;
-  if (!key || !region) throw new Error("Missing Azure speech credentials");
+type SpeechController = {
+  start: () => Promise<void>;
+  stop: () => Promise<void>;
+};
+
+export function createSpeechRecognizer(
+  onText: (text: string) => void,
+): SpeechController | null {
+  const key = import.meta.env.VITE_AZURE_SPEECH_KEY;
+  const region = import.meta.env.VITE_AZURE_SPEECH_REGION;
+  if (!key || !region) {
+    return null;
+  }
   const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
   speechConfig.speechRecognitionLanguage = "en-US";
   const audioConfig = sdk.AudioConfig.fromDefaultMicrophoneInput();
@@ -15,9 +20,10 @@ export function createSpeechRecognizer(onText: (text: string) => void) {
   recognizer.recognizing = (_s, e) => onText(e.result.text);
   recognizer.recognized = (_s, e) => onText(e.result.text);
   return {
-    start: () => new Promise<void>((resolve, reject) => {
-      recognizer.startContinuousRecognitionAsync(resolve, reject);
-    }),
+    start: () =>
+      new Promise<void>((resolve, reject) => {
+        recognizer.startContinuousRecognitionAsync(resolve, reject);
+      }),
     stop: () =>
       new Promise<void>((resolve) => {
         recognizer.stopContinuousRecognitionAsync(() => {
