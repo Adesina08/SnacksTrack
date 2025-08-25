@@ -8,6 +8,16 @@ import { Users, TrendingUp, Award, Database, Download, Calendar } from "lucide-r
 import Navigation from "@/components/Navigation";
 import { localDbOperations } from "@/lib/api-client";
 import ActivityCalendar from 'react-activity-calendar';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 import { ConsumptionLog } from "@/types/api";
 
 interface AdminStats {
@@ -23,6 +33,11 @@ interface ActivityData {
   level: 0 | 1 | 2 | 3 | 4;
 }
 
+interface BrandChartEntry {
+  date: string;
+  [brand: string]: number | string;
+}
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
@@ -31,6 +46,8 @@ const AdminDashboard = () => {
     recentActivity: []
   });
   const [activityData, setActivityData] = useState<ActivityData[]>([]);
+  const [brandData, setBrandData] = useState<BrandChartEntry[]>([]);
+  const [topBrands, setTopBrands] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -57,7 +74,12 @@ const AdminDashboard = () => {
         recentActivity: logs.slice(0, 10)
       });
 
-      // Generate activity heatmap data (last 365 days)
+      // Brand shares line chart (last 30 days)
+      const { data: brandChartData, brands } = generateBrandShareData(logs);
+      setBrandData(brandChartData);
+      setTopBrands(brands);
+
+      // Activity heatmap (last 365 days)
       const heatmapData = generateActivityHeatmap(analytics);
       setActivityData(heatmapData);
       
@@ -129,6 +151,52 @@ const AdminDashboard = () => {
     }
     
     return data;
+  };
+
+  const generateBrandShareData = (logs: ConsumptionLog[]) => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+
+    const filtered = logs.filter(
+      log => log.brand && new Date(log.createdAt) >= startDate
+    );
+
+    const brandTotals = new Map<string, number>();
+    filtered.forEach(log => {
+      const brand = log.brand as string;
+      brandTotals.set(brand, (brandTotals.get(brand) || 0) + 1);
+    });
+
+    const brands = Array.from(brandTotals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([brand]) => brand);
+
+    const dateMap = new Map<string, BrandChartEntry>();
+    for (
+      let d = new Date(startDate);
+      d <= endDate;
+      d.setDate(d.getDate() + 1)
+    ) {
+      const dateStr = d.toISOString().split('T')[0];
+      const entry: BrandChartEntry = { date: dateStr };
+      brands.forEach(b => {
+        entry[b] = 0;
+      });
+      dateMap.set(dateStr, entry);
+    }
+
+    filtered.forEach(log => {
+      const dateStr = new Date(log.createdAt).toISOString().split('T')[0];
+      const brand = log.brand as string;
+      if (dateMap.has(dateStr) && brands.includes(brand)) {
+        const entry = dateMap.get(dateStr)!;
+        entry[brand] = (entry[brand] as number) + 1;
+      }
+    });
+
+    return { data: Array.from(dateMap.values()), brands };
   };
 
   const exportData = async () => {
@@ -250,6 +318,51 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Brand Shares Line Chart */}
+        <Card className="glass-card hover-glow mb-8">
+          <CardHeader>
+            <CardTitle>Brand Shares (Last 30 Days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topBrands.length > 0 ? (
+              <>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {topBrands.map(brand => (
+                    <Badge key={brand} variant="secondary">
+                      {brand}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="w-full h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={brandData} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" hide />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      {topBrands.map((brand, index) => (
+                        <Line
+                          key={brand}
+                          type="monotone"
+                          dataKey={brand}
+                          stroke={['#8884d8', '#82ca9d', '#ffc658', '#ff7300'][index % 4]}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-32 text-muted-foreground">
+                <p>No brand data available</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Activity Heatmap */}
         <Card className="glass-card hover-glow mb-8">
